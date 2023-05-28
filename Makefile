@@ -1,6 +1,6 @@
 EXECUTABLE := gemv
 
-CU_FILES   := test_gemv.cu fast_gemv.cu
+CU_FILES   := test_gemv.cu fast_gemv.cu simple_tensor.cu
 
 CU_DEPS    := fast_gemv.cuh
 
@@ -20,7 +20,7 @@ NVCCFLAGS=-O3 -m64 -ccbin /usr/bin/gcc \
   -gencode arch=compute_70,code=sm_70 \
   -gencode arch=compute_75,code=sm_75
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/test_gemv.o $(OBJDIR)/fast_gemv.o
+OBJS=$(OBJDIR)/main.o  $(OBJDIR)/test_gemv.o $(OBJDIR)/fast_gemv.o $(OBJDIR)/simple_tensor.o
 
 .PHONY: dirs clean
 
