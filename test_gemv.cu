@@ -7,6 +7,7 @@
 #include <chrono>
 
 #include "simple_tensor.h"
+#include "fast_gemv.cuh"
 
 ///////////////////////////// KERNELS //////////////////////////////
 
@@ -51,22 +52,22 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
     assert(width_ == other.height_);
     assert(other.width_ == 1);
     SimpleTensor result(height_, 1);
-    // start timing
-    cudaEvent_t startEvent, stopEvent; 
-    cudaEventCreate(&startEvent); 
-    cudaEventCreate(&stopEvent);
-    cudaEventRecord(startEvent, 0);
+    // // start timing
+    // cudaEvent_t startEvent, stopEvent; 
+    // cudaEventCreate(&startEvent); 
+    // cudaEventCreate(&stopEvent);
+    // cudaEventRecord(startEvent, 0);
     // launch naive kernel
     // TODO: optimize
     int threads_per_block = 256;
     int num_blocks = (width_ + threads_per_block - 1) / threads_per_block;
     gemv_naive<<<num_blocks, threads_per_block>>>(data_, other.data_, result.data_, width_);
-    // Record the stop event
-    cudaEventRecord(stopEvent, 0);
-    cudaEventSynchronize(stopEvent);
-    float elapsedTime;
-    cudaEventElapsedTime(&elapsedTime, startEvent, stopEvent);
-    printf("Kernel time: %.3f µs\n", elapsedTime * 1000);
+    // // Record the stop event
+    // cudaEventRecord(stopEvent, 0);
+    // cudaEventSynchronize(stopEvent);
+    // float elapsedTime;
+    // cudaEventElapsedTime(&elapsedTime, startEvent, stopEvent);
+    // printf("Kernel time: %.3f µs\n", elapsedTime * 1000);
     return result;
 }
 
