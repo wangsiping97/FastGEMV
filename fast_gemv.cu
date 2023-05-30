@@ -11,7 +11,7 @@
 
 struct __align__(8) half4 { half x, y, z, w; };
 
-// one block per row (gridDim.x = 1)
+// one block per 4 rows (gridDim.x = 1, gridDim.y = 128)
 // thread_per_block = WARP_SIZE
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int thread_per_block,
@@ -19,7 +19,7 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
   half sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
-  unsigned int row = blockIdx.y;
+  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
   unsigned int start_idx = threadIdx.x;
   half4* mat4 = reinterpret_cast<half4*>(mat);
   half4* vec4 = reinterpret_cast<half4*>(vec);
@@ -52,7 +52,7 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
   half sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
-  unsigned int row = blockIdx.y;
+  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
   unsigned int start_idx =
       blockIdx.x * (thread_per_block * num_per_thread) / 4 + threadIdx.x;
   half4* mat4 = reinterpret_cast<half4*>(mat);
@@ -94,7 +94,7 @@ __global__ void gemv_reduce_fp16(half* mid_res, half* res,
   half sum = 0;
   // each thread loads one element from global
   unsigned int tid = threadIdx.x;
-  unsigned int row = blockIdx.y;
+  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
   if (tid < block_num) {
     sum = mid_res[row * blockDim.x + tid];
   }
