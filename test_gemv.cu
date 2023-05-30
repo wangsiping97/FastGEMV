@@ -22,7 +22,11 @@ void test_gemv(unsigned int size) {
 
   // compute the dot product
   printf("solving...\n");
-  SimpleTensor res = mat.solve_gemv(vec);
+  SimpleTensor res = SimpleTensor(size, 1);
+
+  for (int i = 0; i < 1; ++i) {
+    res = mat.solve_gemv(vec);
+  }
 
   // check correctness
   printf("checking...\n");

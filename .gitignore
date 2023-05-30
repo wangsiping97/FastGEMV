@@ -1,4 +1,5 @@
 .vscode
 objs/
 gemv
-report.*
+nsys-reps/
+nsys-reps/*

@@ -3,6 +3,8 @@
 #include "fast_gemv.cuh"
 #include "simple_tensor.h"
 
+const unsigned int THREAD_PER_BLOCK = 256;
+
 void check(cudaError_t result, char const* const func, const char* const file,
            int const line) {
   if (result) {
@@ -36,24 +38,31 @@ void print_cuda_info() {
 SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
   assert(width_ == other.height_);
   assert(other.width_ == 1);
+
+  const unsigned int block_num = 32;
+  unsigned int num_per_thread = height_ / (THREAD_PER_BLOCK * block_num);
+  if (num_per_thread == 0) num_per_thread = 1;
+
+  SimpleTensor mid_result(height_, block_num);
   SimpleTensor result(height_, 1);
-  // // start timing
-  // cudaEvent_t startEvent, stopEvent;
-  // cudaEventCreate(&startEvent);
-  // cudaEventCreate(&stopEvent);
-  // cudaEventRecord(startEvent, 0);
   // launch naive kernel
   // TODO: optimize
-  int threads_per_block = 256;
-  int num_blocks = (width_ + threads_per_block - 1) / threads_per_block;
-  gemv_naive<<<num_blocks, threads_per_block>>>(data_, other.data_,
-                                                result.data_, width_);
-  // // Record the stop event
-  // cudaEventRecord(stopEvent, 0);
-  // cudaEventSynchronize(stopEvent);
-  // float elapsedTime;
-  // cudaEventElapsedTime(&elapsedTime, startEvent, stopEvent);
-  // printf("Kernel time: %.3f µs\n", elapsedTime * 1000);
+
+  dim3 grid_dim(block_num, height_);
+  dim3 block_dim(THREAD_PER_BLOCK, 1);
+  gemv_fp16<<<grid_dim, block_dim>>>(data_, other.data_, mid_result.data_,
+                                     width_, THREAD_PER_BLOCK, num_per_thread);
+  checkCudaErrors(cudaPeekAtLastError());
+  dim3 grid_dim_reduce(1, height_);
+  dim3 block_dim_reduce(block_num, 1);
+  gemv_reduce_fp16<<<grid_dim_reduce, block_dim_reduce>>>(
+      mid_result.data_, result.data_, block_num);
+  checkCudaErrors(cudaPeekAtLastError());
+  // int threads_per_block = 256;
+  // int num_blocks = (width_ + threads_per_block - 1) / threads_per_block;
+  // gemv_naive<<<num_blocks, threads_per_block>>>(data_, other.data_,
+  //                                               result.data_, width_);
+
   return result;
 }
 
