@@ -42,7 +42,7 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
 
   if (width_ <= 512) {
     const unsigned int block_num = 1;
-    const unsigned int thread_per_block = 64;
+    const unsigned int thread_per_block = 32;
     unsigned int num_per_thread = height_ / (thread_per_block * block_num);
     if (num_per_thread == 0) {
       num_per_thread = 1;

@@ -10,42 +10,32 @@
 #define WARP_SIZE 32
 
 // one block per row (gridDim.x = 1)
+// thread_per_block <= WARP_SIZE
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int thread_per_block,
                               unsigned int num_per_thread) {
-  half sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
   unsigned int row = blockIdx.y;
   unsigned int start_idx = threadIdx.x;
+  half2* mat2 = reinterpret_cast<half2*>(mat);
+  half2* vec2 = reinterpret_cast<half2*>(vec);
+  half2 sum2 = make_half2(0, 0);
 #pragma unroll
-  for (int iter = 0; iter < num_per_thread; iter++) {
+  for (int iter = 0; iter < num_per_thread / 2;
+       iter++) {  // Assume num_per_thread is even.
     unsigned int j = start_idx + iter * thread_per_block;
-    if (j < n) {
-      sum += vec[j] * mat[row * n + j];
+    if (j < n / 2) {  // Assume n is even.
+      half2 vec_val = vec2[j];
+      half2 mat_val = mat2[row * (n / 2) + j];
+      sum2.x += vec_val.x * mat_val.x;
+      sum2.y += vec_val.y * mat_val.y;
     }
   }
+  half sum = sum2.x + sum2.y;
 
   sum = warpReduceSum(sum, thread_per_block);
 
-  if (thread_per_block <= WARP_SIZE) {
-    if (tid == 0) {
-      res[row] = sum;
-    }
-    return;
-  }
-
-  // Shared mem for partial sums (one per warp in the block)
-  static __shared__ half warpLevelSums[WARP_SIZE];
-  const int laneId = threadIdx.x % WARP_SIZE;
-  const int warpId = threadIdx.x / WARP_SIZE;
-  if (laneId == 0) warpLevelSums[warpId] = sum;
-  __syncthreads();
-  // read from shared memory only if that warp existed
-  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[laneId]
-                                               : (half)0.0;
-  // Final reduce using first warp
-  if (warpId == 0) sum = warpReduceSum(sum, thread_per_block / WARP_SIZE);
   if (tid == 0) {
     res[row] = sum;
   }
