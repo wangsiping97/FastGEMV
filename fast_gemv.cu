@@ -12,7 +12,7 @@
 struct __align__(8) half4 { half x, y, z, w; };
 
 // one block per row (gridDim.x = 1)
-// thread_per_block <= WARP_SIZE
+// thread_per_block = WARP_SIZE
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int thread_per_block,
                               unsigned int num_per_thread) {
@@ -44,6 +44,7 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
   }
 }
 
+// 32 blocks per row
 // thread_per_block * num_per_thread = num_per_block = n / blockDim.x
 __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
                           unsigned int thread_per_block,
@@ -53,12 +54,19 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
   unsigned int tid = threadIdx.x;
   unsigned int row = blockIdx.y;
   unsigned int start_idx =
-      blockIdx.x * (thread_per_block * num_per_thread) + threadIdx.x;
+      blockIdx.x * (thread_per_block * num_per_thread) / 4 + threadIdx.x;
+  half4* mat4 = reinterpret_cast<half4*>(mat);
+  half4* vec4 = reinterpret_cast<half4*>(vec);
 #pragma unroll
-  for (int iter = 0; iter < num_per_thread; iter++) {
+  for (int iter = 0; iter < num_per_thread / 4; iter++) {
     unsigned int j = start_idx + iter * thread_per_block;
-    if (j < n) {
-      sum += vec[j] * mat[row * n + j];
+    if (j < n / 4) {
+      half4 vec_val = vec4[j];
+      half4 mat_val = mat4[row * (n / 4) + j];
+      sum += vec_val.x * mat_val.x;
+      sum += vec_val.y * mat_val.y;
+      sum += vec_val.z * mat_val.z;
+      sum += vec_val.w * mat_val.w;
     }
   }
 

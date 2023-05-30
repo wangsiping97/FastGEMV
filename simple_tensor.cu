@@ -3,7 +3,7 @@
 #include "fast_gemv.cuh"
 #include "simple_tensor.h"
 
-const unsigned int THREAD_PER_BLOCK = 256;
+const unsigned int THREAD_PER_BLOCK = 32;
 
 void check(cudaError_t result, char const* const func, const char* const file,
            int const line) {
@@ -57,7 +57,7 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
   }
 
   const unsigned int block_num = 32;
-  unsigned int num_per_thread = height_ / (THREAD_PER_BLOCK * block_num);
+  unsigned int num_per_thread = width_ / (THREAD_PER_BLOCK * block_num);
   if (num_per_thread == 0) num_per_thread = 1;
 
   SimpleTensor mid_result(height_, block_num);
