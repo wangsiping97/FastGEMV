@@ -13,8 +13,7 @@
 __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
                           unsigned int thread_per_block,
                           unsigned int num_per_thread) {
-  __half sum = 0;
-  half temp = 0;
+  half sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
   unsigned int row = blockIdx.y;
@@ -24,11 +23,10 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
   for (int iter = 0; iter < num_per_thread; iter++) {
     unsigned int j = start_idx + iter * thread_per_block;
     if (j < n) {
-      temp += vec[j] * mat[row * n + j];
+      sum += vec[j] * mat[row * n + j];
     }
   }
 
-  sum = temp;
   // Shared mem for partial sums (one per warp in the block)
   static __shared__ half warpLevelSums[WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
@@ -64,23 +62,18 @@ __global__ void gemv_reduce_fp16(half* mid_res, half* res,
 
 ///////////////////////////// UTILITIES //////////////////////////////
 
-__device__ __forceinline__ __half warpReduceSum(__half sum,
-                                                unsigned int blockSize) {
+__device__ __forceinline__ half warpReduceSum(half sum,
+                                              unsigned int blockSize) {
   if (blockSize >= 32)
-    sum = __hadd(
-        sum, __shfl_down_sync(0xffffffff, sum, 16));  // 0-16, 1-17, 2-18, etc.
+    sum += __shfl_down_sync(0xffffffff, sum, 16);  // 0-16, 1-17, 2-18, etc.
   if (blockSize >= 16)
-    sum = __hadd(sum,
-                 __shfl_down_sync(0xffffffff, sum, 8));  // 0-8, 1-9, 2-10, etc.
+    sum += __shfl_down_sync(0xffffffff, sum, 8);  // 0-8, 1-9, 2-10, etc.
   if (blockSize >= 8)
-    sum = __hadd(sum,
-                 __shfl_down_sync(0xffffffff, sum, 4));  // 0-4, 1-5, 2-6, etc.
+    sum += __shfl_down_sync(0xffffffff, sum, 4);  // 0-4, 1-5, 2-6, etc.
   if (blockSize >= 4)
-    sum = __hadd(
-        sum, __shfl_down_sync(0xffffffff, sum, 2));  // 0-2, 1-3, 4-6, 5-7, etc.
+    sum += __shfl_down_sync(0xffffffff, sum, 2);  // 0-2, 1-3, 4-6, 5-7, etc.
   if (blockSize >= 2)
-    sum = __hadd(sum,
-                 __shfl_down_sync(0xffffffff, sum, 1));  // 0-1, 2-3, 4-5, etc.
+    sum += __shfl_down_sync(0xffffffff, sum, 1);  // 0-1, 2-3, 4-5, etc.
   return sum;
 }
 

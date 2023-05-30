@@ -12,7 +12,7 @@
 
 ///////////////////////////// SOLVER //////////////////////////////
 
-void test_gemv(unsigned int size) {
+void test_gemv(unsigned int size, unsigned int iter) {
   cudaSetDevice(0);
   // generate data
   SimpleTensor mat = SimpleTensor(size, size);
@@ -24,7 +24,7 @@ void test_gemv(unsigned int size) {
   printf("solving...\n");
   SimpleTensor res = SimpleTensor(size, 1);
 
-  for (int i = 0; i < 1; ++i) {
+  for (int i = 0; i < iter; ++i) {
     res = mat.solve_gemv(vec);
   }
 
