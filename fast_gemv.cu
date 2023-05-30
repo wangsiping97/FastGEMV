@@ -12,9 +12,8 @@
 struct __align__(8) half4 { half x, y, z, w; };
 
 // one block per 4 rows (gridDim.x = 1, gridDim.y = 128)
-// thread_per_block = WARP_SIZE
+// thread_per_block = blockDim.x = WARP_SIZE
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
-                              unsigned int thread_per_block,
                               unsigned int num_per_thread) {
   half sum = 0;
   // each thread load num_per_thread elements from global
@@ -25,8 +24,40 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
   half4* vec4 = reinterpret_cast<half4*>(vec);
 
 #pragma unroll
+  for (int iter = 0; iter < num_per_thread >> 2; iter++) {
+    unsigned int j = start_idx + iter * blockDim.x;
+    if (j < n >> 2) {
+      half4 vec_val = vec4[j];
+      half4 mat_val = mat4[row * (n >> 2) + j];
+      sum += vec_val.x * mat_val.x;
+      sum += vec_val.y * mat_val.y;
+      sum += vec_val.z * mat_val.z;
+      sum += vec_val.w * mat_val.w;
+    }
+  }
+
+  sum = warpReduceSum(sum, blockDim.x);
+
+  if (tid == 0) {
+    res[row] = sum;
+  }
+}
+
+// thread_per_block = blockDim.x = WARP_SIZE
+__global__ void gemv_fp16_16384(half* mat, half* vec, half* mid_res,
+                                unsigned int n, unsigned int num_per_thread) {
+  half sum = 0;
+  // each thread load num_per_thread elements from global
+  unsigned int tid = threadIdx.x;
+  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
+  unsigned int start_idx =
+      blockIdx.x * (blockDim.x * num_per_thread) / 4 + threadIdx.x;
+  half4* mat4 = reinterpret_cast<half4*>(mat);
+  half4* vec4 = reinterpret_cast<half4*>(vec);
+
+#pragma unroll
   for (int iter = 0; iter < num_per_thread / 4; iter++) {
-    unsigned int j = start_idx + iter * thread_per_block;
+    unsigned int j = start_idx + iter * blockDim.x;
     if (j < n / 4) {
       half4 vec_val = vec4[j];
       half4 mat_val = mat4[row * (n / 4) + j];
@@ -37,14 +68,14 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
     }
   }
 
-  sum = warpReduceSum(sum, thread_per_block);
+  sum = warpReduceSum(sum, blockDim.x);
 
   if (tid == 0) {
-    res[row] = sum;
+    mid_res[row * gridDim.x + blockIdx.x] = sum;
   }
 }
 
-// 32 blocks per row
+// 32 blocks per 4 rows
 // thread_per_block * num_per_thread = num_per_block = n / blockDim.x
 __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
                           unsigned int thread_per_block,
@@ -57,10 +88,26 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
       blockIdx.x * (thread_per_block * num_per_thread) / 4 + threadIdx.x;
   half4* mat4 = reinterpret_cast<half4*>(mat);
   half4* vec4 = reinterpret_cast<half4*>(vec);
+
+  // // Allocate shared memory for vec4
+  // __shared__ half4 shared_vec4[128];
+
+  // // Load vec4 into shared memory
+  // if (threadIdx.y == 0) {
+  //   for (int iter = 0; iter < num_per_thread / 4; iter++) {
+  //     unsigned int j = start_idx + iter * thread_per_block;
+  //     if (j < n / 4) {
+  //       shared_vec4[threadIdx.x + iter * thread_per_block] = vec4[j];
+  //     }
+  //   }
+  // }
+  // __syncthreads();
+
 #pragma unroll
   for (int iter = 0; iter < num_per_thread / 4; iter++) {
     unsigned int j = start_idx + iter * thread_per_block;
     if (j < n / 4) {
+      // half4 vec_val = shared_vec4[threadIdx.x + iter * thread_per_block];
       half4 vec_val = vec4[j];
       half4 mat_val = mat4[row * (n / 4) + j];
       sum += vec_val.x * mat_val.x;
@@ -71,6 +118,13 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
   }
 
   sum = warpReduceSum(sum, thread_per_block);
+
+  if (thread_per_block <= WARP_SIZE) {
+    if (tid == 0) {
+      mid_res[row * gridDim.x + blockIdx.x] = sum;
+    }
+    return;
+  }
 
   // Shared mem for partial sums (one per warp in the block)
   static __shared__ half warpLevelSums[WARP_SIZE];
