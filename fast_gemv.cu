@@ -16,13 +16,13 @@ struct __align__(8) half4 { half x, y, z, w; };
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int thread_per_block,
                               unsigned int num_per_thread) {
+  half sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
   unsigned int row = blockIdx.y;
   unsigned int start_idx = threadIdx.x;
   half4* mat4 = reinterpret_cast<half4*>(mat);
   half4* vec4 = reinterpret_cast<half4*>(vec);
-  half4 sum4 = {0, 0, 0, 0};
 
 #pragma unroll
   for (int iter = 0; iter < num_per_thread / 4; iter++) {
@@ -30,14 +30,12 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
     if (j < n / 4) {
       half4 vec_val = vec4[j];
       half4 mat_val = mat4[row * (n / 4) + j];
-      sum4.x += vec_val.x * mat_val.x;
-      sum4.y += vec_val.y * mat_val.y;
-      sum4.z += vec_val.z * mat_val.z;
-      sum4.w += vec_val.w * mat_val.w;
+      sum += vec_val.x * mat_val.x;
+      sum += vec_val.y * mat_val.y;
+      sum += vec_val.z * mat_val.z;
+      sum += vec_val.w * mat_val.w;
     }
   }
-
-  half sum = sum4.x + sum4.y + sum4.z + sum4.w;
 
   sum = warpReduceSum(sum, thread_per_block);
 
