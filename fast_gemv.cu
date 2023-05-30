@@ -9,6 +9,8 @@
 
 #define WARP_SIZE 32
 
+struct __align__(8) half4 { half x, y, z, w; };
+
 // one block per row (gridDim.x = 1)
 // thread_per_block <= WARP_SIZE
 __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
@@ -18,21 +20,24 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
   unsigned int tid = threadIdx.x;
   unsigned int row = blockIdx.y;
   unsigned int start_idx = threadIdx.x;
-  half2* mat2 = reinterpret_cast<half2*>(mat);
-  half2* vec2 = reinterpret_cast<half2*>(vec);
-  half2 sum2 = make_half2(0, 0);
+  half4* mat4 = reinterpret_cast<half4*>(mat);
+  half4* vec4 = reinterpret_cast<half4*>(vec);
+  half4 sum4 = {0, 0, 0, 0};
+
 #pragma unroll
-  for (int iter = 0; iter < num_per_thread / 2;
-       iter++) {  // Assume num_per_thread is even.
+  for (int iter = 0; iter < num_per_thread / 4; iter++) {
     unsigned int j = start_idx + iter * thread_per_block;
-    if (j < n / 2) {  // Assume n is even.
-      half2 vec_val = vec2[j];
-      half2 mat_val = mat2[row * (n / 2) + j];
-      sum2.x += vec_val.x * mat_val.x;
-      sum2.y += vec_val.y * mat_val.y;
+    if (j < n / 4) {
+      half4 vec_val = vec4[j];
+      half4 mat_val = mat4[row * (n / 4) + j];
+      sum4.x += vec_val.x * mat_val.x;
+      sum4.y += vec_val.y * mat_val.y;
+      sum4.z += vec_val.z * mat_val.z;
+      sum4.w += vec_val.w * mat_val.w;
     }
   }
-  half sum = sum2.x + sum2.y;
+
+  half sum = sum4.x + sum4.y + sum4.z + sum4.w;
 
   sum = warpReduceSum(sum, thread_per_block);
 
@@ -59,11 +64,12 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
     }
   }
 
+  sum = warpReduceSum(sum, thread_per_block);
+
   // Shared mem for partial sums (one per warp in the block)
   static __shared__ half warpLevelSums[WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
-  sum = warpReduceSum(sum, thread_per_block);
   if (laneId == 0) warpLevelSums[warpId] = sum;
   __syncthreads();
   // read from shared memory only if that warp existed

@@ -56,7 +56,7 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
     return result;
   }
 
-  const unsigned int block_num = 4;
+  const unsigned int block_num = 32;
   unsigned int num_per_thread = height_ / (THREAD_PER_BLOCK * block_num);
   if (num_per_thread == 0) num_per_thread = 1;
 
@@ -69,17 +69,17 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
   gemv_fp16<<<grid_dim, block_dim>>>(data_, other.data_, mid_result.data_,
                                      width_, THREAD_PER_BLOCK, num_per_thread);
   checkCudaErrors(cudaPeekAtLastError());
-  // dim3 grid_dim_reduce(1, height_);
-  // dim3 block_dim_reduce(block_num, 1);
-  // gemv_reduce_fp16<<<grid_dim_reduce, block_dim_reduce>>>(
-  //     mid_result.data_, result.data_, block_num);
-  // checkCudaErrors(cudaPeekAtLastError());
+  dim3 grid_dim_reduce(1, height_);
+  dim3 block_dim_reduce(block_num, 1);
+  gemv_reduce_fp16<<<grid_dim_reduce, block_dim_reduce>>>(
+      mid_result.data_, result.data_, block_num);
+  checkCudaErrors(cudaPeekAtLastError());
   // int threads_per_block = 10;
   // int num_blocks = (width_ + threads_per_block - 1) / threads_per_block;
   // gemv_naive<<<num_blocks, threads_per_block>>>(data_, other.data_,
   //                                               result.data_, width_);
 
-  return mid_result;
+  return result;
 }
 
 void SimpleTensor::reset() {
