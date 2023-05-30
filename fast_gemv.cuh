@@ -11,6 +11,10 @@ __global__ void check_correctness(half* mat, half* vec, half* res, int n);
 // one thread for one dot product
 __global__ void gemv_naive(half* mat, half* vec, half* res, int n);
 
+__global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
+                              unsigned int thread_per_block,
+                              unsigned int num_per_thread);
+
 __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
                           unsigned int thread_per_block,
                           unsigned int num_per_thread);

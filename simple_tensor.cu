@@ -38,13 +38,29 @@ void print_cuda_info() {
 SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
   assert(width_ == other.height_);
   assert(other.width_ == 1);
+  SimpleTensor result(height_, 1);
 
-  const unsigned int block_num = 32;
+  if (width_ <= 512) {
+    const unsigned int block_num = 1;
+    const unsigned int thread_per_block = 64;
+    unsigned int num_per_thread = height_ / (thread_per_block * block_num);
+    if (num_per_thread == 0) {
+      num_per_thread = 1;
+    }
+    dim3 grid_dim(block_num, height_);
+    dim3 block_dim(thread_per_block, 1);
+    gemv_fp16_512<<<grid_dim, block_dim>>>(data_, other.data_, result.data_,
+                                           width_, thread_per_block,
+                                           num_per_thread);
+    checkCudaErrors(cudaPeekAtLastError());
+    return result;
+  }
+
+  const unsigned int block_num = 4;
   unsigned int num_per_thread = height_ / (THREAD_PER_BLOCK * block_num);
   if (num_per_thread == 0) num_per_thread = 1;
 
   SimpleTensor mid_result(height_, block_num);
-  SimpleTensor result(height_, 1);
   // launch naive kernel
   // TODO: optimize
 
@@ -53,17 +69,17 @@ SimpleTensor SimpleTensor::solve_gemv(const SimpleTensor& other) const {
   gemv_fp16<<<grid_dim, block_dim>>>(data_, other.data_, mid_result.data_,
                                      width_, THREAD_PER_BLOCK, num_per_thread);
   checkCudaErrors(cudaPeekAtLastError());
-  dim3 grid_dim_reduce(1, height_);
-  dim3 block_dim_reduce(block_num, 1);
-  gemv_reduce_fp16<<<grid_dim_reduce, block_dim_reduce>>>(
-      mid_result.data_, result.data_, block_num);
-  checkCudaErrors(cudaPeekAtLastError());
-  // int threads_per_block = 256;
+  // dim3 grid_dim_reduce(1, height_);
+  // dim3 block_dim_reduce(block_num, 1);
+  // gemv_reduce_fp16<<<grid_dim_reduce, block_dim_reduce>>>(
+  //     mid_result.data_, result.data_, block_num);
+  // checkCudaErrors(cudaPeekAtLastError());
+  // int threads_per_block = 10;
   // int num_blocks = (width_ + threads_per_block - 1) / threads_per_block;
   // gemv_naive<<<num_blocks, threads_per_block>>>(data_, other.data_,
   //                                               result.data_, width_);
 
-  return result;
+  return mid_result;
 }
 
 void SimpleTensor::reset() {
