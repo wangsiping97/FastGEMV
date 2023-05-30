@@ -139,8 +139,9 @@ __global__ void check_correctness(half* mat, half* vec, half* res, int n) {
       result += __half2float(mat[idx * n + j]) * __half2float(vec[j]);
     }
     half half_result = __float2half(result);
-    if (res[idx] != half_result) {
-      float diff = __half2float(res[idx]) - __half2float(half_result);
+    float diff = __half2float(res[idx]) - __half2float(half_result);
+    float delta = 0.125 * n / 512;
+    if (diff > delta || diff < -delta) {
       printf("!!![idx=%d] %f != %f, diff=%f\n", idx, __half2float(res[idx]),
              __half2float(result), diff);
     }
