@@ -24,6 +24,6 @@ __global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
 __global__ void gemv_reduce_fp16(half* mid_res, half* res,
                                  unsigned int block_num);
 
-__device__ __forceinline__ half warpReduceSum(half sum, unsigned int blockSize);
+__device__ __forceinline__ float warpReduceSum(float sum, unsigned int blockSize);
 
 #endif  // FAST_GEMV_CUH_
