@@ -13,7 +13,7 @@ struct __align__(8) half4 { half x, y, z, w; };
 
 // one block per 4 rows (gridDim.x = 1, gridDim.y = 128)
 // thread_per_block = blockDim.x = WARP_SIZE
-__global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
+__global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int num_per_thread) {
   float sum = 0;
   // each thread load num_per_thread elements from global
@@ -56,7 +56,7 @@ __global__ void gemv_fp16_512(half* mat, half* vec, half* res, unsigned int n,
 }
 
 // thread_per_block = blockDim.x = WARP_SIZE
-__global__ void gemv_fp16_16384(half* mat, half* vec, half* mid_res,
+__global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
                                 unsigned int n, unsigned int num_per_thread) {
   float sum = 0;
   // each thread load num_per_thread elements from global
