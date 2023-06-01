@@ -35,10 +35,6 @@ class SimpleTensor {
    */
   void to_host(half* host_data, unsigned n);
   /**
-   * @brief compute the dot product
-   */
-  SimpleTensor solve_gemv(const SimpleTensor& other) const;
-  /**
    * @brief move constructor
    */
   SimpleTensor(SimpleTensor&& other) noexcept
@@ -72,6 +68,8 @@ class SimpleTensor {
   half* data_;
 };
 
-SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor& vec, int num_kernels, int block_dim_x, int block_dim_y, int grid_dim_x);
+SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor& vec, 
+                                    unsigned int num_kernels, unsigned int block_dim_x,
+                                    unsigned int block_dim_y, unsigned int grid_dim_x);
 
 #endif  // SIMPLE_TENSOR_H_

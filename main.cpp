@@ -3,7 +3,6 @@
 
 #include <cstdlib>
 
-void test_gemv(unsigned int size, unsigned int iter);
 void test_gemv_with_params(unsigned int size, unsigned int iter, int num_kernels, int block_dim_x, int block_dim_y, int grid_dim_x);
 
 int main(int argc, char** argv) {
@@ -19,10 +18,10 @@ int main(int argc, char** argv) {
 
   unsigned int size = 512;
   unsigned int iter = 1;
-  int block_dim_x = 32;
-  int block_dim_y = 4;
-  int grid_dim_x = 1;
-  int num_kernels = 1;
+  unsigned int block_dim_x = 32;
+  unsigned int block_dim_y = 4;
+  unsigned int grid_dim_x = 1;
+  unsigned int num_kernels = 1;
 
   while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:", long_options, NULL)) != -1) {
     switch (opt) {
@@ -40,25 +39,25 @@ int main(int argc, char** argv) {
         break;
       case 'k':
         if (optarg != NULL)
-          num_kernels = atoi(optarg);
+          num_kernels = (unsigned int)atoi(optarg);
         else
           printf("kernels option requires an argument\n");
         break;
       case 'x':
         if (optarg != NULL)
-          block_dim_x = atoi(optarg);
+          block_dim_x = (unsigned int)atoi(optarg);
         else
           printf("block_x option requires an argument\n");
         break;
       case 'y':
         if (optarg != NULL)
-          block_dim_y = atoi(optarg);
+          block_dim_y = (unsigned int)atoi(optarg);
         else
           printf("block_y option requires an argument\n");
         break;
       case 'g':
         if (optarg != NULL)
-          grid_dim_x = atoi(optarg);
+          grid_dim_x = (unsigned int)atoi(optarg);
         else
           printf("grid_x option requires an argument\n");
         break;

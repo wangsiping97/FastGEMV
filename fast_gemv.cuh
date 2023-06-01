@@ -17,10 +17,6 @@ __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned
 __global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
                                 unsigned int n, unsigned int num_per_thread);
 
-__global__ void gemv_fp16(half* mat, half* vec, half* mid_res, unsigned int n,
-                          unsigned int thread_per_block,
-                          unsigned int num_per_thread);
-
 __global__ void gemv_reduce_fp16(half* mid_res, half* res,
                                  unsigned int block_num);
 
