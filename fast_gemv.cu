@@ -9,8 +9,6 @@
 
 #define WARP_SIZE 32
 
-struct __align__(8) half4 { half x, y, z, w; };
-
 // thread_per_block = blockDim.x
 // blockDim.y <= 32
 __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned int n,
