@@ -3,7 +3,9 @@
 
 #include <cstdlib>
 
-void test_gemv_with_params(unsigned int size, unsigned int iter, int num_kernels, int block_dim_x, int block_dim_y, int grid_dim_x);
+void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+                           unsigned int block_dim_x, unsigned int block_dim_y, 
+                           unsigned int grid_dim_x);
 
 int main(int argc, char** argv) {
   // parse commandline options
