@@ -18,7 +18,8 @@ NVCC=nvcc
 NVCCFLAGS=-O3 -m64 -ccbin /usr/bin/gcc \
   -gencode arch=compute_60,code=sm_60 \
   -gencode arch=compute_70,code=sm_70 \
-  -gencode arch=compute_75,code=sm_75
+  -gencode arch=compute_75,code=sm_75 \
+  -gencode arch=compute_86,code=sm_86
 
 OBJS=$(OBJDIR)/main.o  $(OBJDIR)/test_gemv.o $(OBJDIR)/fast_gemv.o $(OBJDIR)/simple_tensor.o
 

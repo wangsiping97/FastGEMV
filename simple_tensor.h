@@ -66,11 +66,12 @@ class SimpleTensor {
   }
   ~SimpleTensor() { checkCudaErrors(cudaFree(data_)); }
 
- private:
   unsigned int width_;
   unsigned int height_;
   // device data
   half* data_;
 };
+
+SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor& vec, int num_kernels, int block_dim_x, int block_dim_y, int grid_dim_x);
 
 #endif  // SIMPLE_TENSOR_H_

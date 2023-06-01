@@ -17,5 +17,5 @@ size = args.size
 
 # Generate the tensors and perform the matmul operation
 a, b = gen(size)
-for i in range(100):
+for i in range(10000):
     c = a.matmul(b)

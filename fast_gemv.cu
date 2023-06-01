@@ -11,8 +11,8 @@
 
 struct __align__(8) half4 { half x, y, z, w; };
 
-// one block per 4 rows (gridDim.x = 1, gridDim.y = 128)
-// thread_per_block = blockDim.x = WARP_SIZE
+// thread_per_block = blockDim.x
+// blockDim.y <= 32
 __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int num_per_thread) {
   float sum = 0;
@@ -50,12 +50,30 @@ __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned
 
   sum = warpReduceSum(sum, blockDim.x);
 
+  if (blockDim.x <= WARP_SIZE) {
+    if (tid == 0) {
+      res[row] = __float2half(sum);
+    }
+    return;
+  }
+
+  // Shared mem for partial sums (one per warp in the block)
+  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  const int laneId = threadIdx.x % WARP_SIZE;
+  const int warpId = threadIdx.x / WARP_SIZE;
+  if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
+  __syncthreads();
+  // read from shared memory only if that warp existed
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
+  // Final reduce using first warp
+  if (warpId == 0) sum = warpReduceSum(sum, blockDim.x / WARP_SIZE);
   if (tid == 0) {
     res[row] = __float2half(sum);
   }
 }
 
-// thread_per_block = blockDim.x = WARP_SIZE
+// thread_per_block = blockDim.x
+// blockDim.y <= 32
 __global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
                                 unsigned int n, unsigned int num_per_thread) {
   float sum = 0;
@@ -94,6 +112,23 @@ __global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
 
   sum = warpReduceSum(sum, blockDim.x);
 
+  if (blockDim.x <= WARP_SIZE) {
+    if (tid == 0) {
+      mid_res[row * gridDim.x + blockIdx.x] = __float2half(sum);
+    }
+    return;
+  }
+
+  // Shared mem for partial sums (one per warp in the block)
+  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  const int laneId = threadIdx.x % WARP_SIZE;
+  const int warpId = threadIdx.x / WARP_SIZE;
+  if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
+  __syncthreads();
+  // read from shared memory only if that warp existed
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
+  // Final reduce using first warp
+  if (warpId == 0) sum = warpReduceSum(sum, blockDim.x / WARP_SIZE);
   if (tid == 0) {
     mid_res[row * gridDim.x + blockIdx.x] = __float2half(sum);
   }

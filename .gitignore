@@ -3,3 +3,6 @@ objs/
 gemv
 nsys-reps/
 nsys-reps/*
+*.sqlite
+*.nsys-rep
+*.txt
