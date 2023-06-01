@@ -6,25 +6,32 @@
 #include <cuda_runtime.h>
 
 #include <iostream>
+#include <cassert>
 
 ///////////////////////////// UTILITIES //////////////////////////////
 
 // Define the error checking function
 #define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
 
-void check(cudaError_t result, char const* const func, const char* const file,
-           int const line);
+inline void check(cudaError_t result, char const* const func, const char* const file,
+           int const line) {
+  if (result) {
+    fprintf(stderr, "CUDA error = %s at %s:%d '%s'\n",
+            cudaGetErrorString(result), file, line, func);
+    exit(1);
+  }
+}
 
 ///////////////////////////// TENSOR //////////////////////////////
-
+template <typename T>
 class SimpleTensor {
  public:
   SimpleTensor(unsigned height, unsigned width)
       : height_(height), width_(width) {
     checkCudaErrors(
-        cudaMalloc((void**)&data_, height_ * width_ * sizeof(half)));
+        cudaMalloc((void**)&data_, height_ * width_ * sizeof(T)));
   }
-  half* device_data() const { return data_; }
+  T* device_data() const { return data_; }
   /**
    * @brief generate a height_ * width_ matrix with random fp16 numbers
    */
@@ -32,7 +39,7 @@ class SimpleTensor {
   /**
    * @brief copy the numbers from device to the host
    */
-  void to_host(half* host_data, unsigned n);
+  void to_host(T* host_data, unsigned n);
   /**
    * @brief move constructor
    */
@@ -64,7 +71,28 @@ class SimpleTensor {
   unsigned int width_;
   unsigned int height_;
   // device data
-  half* data_;
+  T* data_;
 };
+
+template <typename T>
+void SimpleTensor<T>::reset() {
+  unsigned int total_elements = height_ * width_;
+  int threads_per_block = 256;
+  int num_blocks = (total_elements + threads_per_block - 1) / threads_per_block;
+
+  if constexpr (std::is_same<T, half>::value) {
+    generate_random_numbers<<<num_blocks, threads_per_block>>>(data_,
+                                                            total_elements);
+  }
+  checkCudaErrors(cudaPeekAtLastError());
+}
+
+template <typename T>
+void SimpleTensor<T>::to_host(T* host_data, unsigned n) {
+  unsigned int total_elements = height_ * width_;
+  assert(n <= total_elements);
+  checkCudaErrors(
+      cudaMemcpy(host_data, data_, n * sizeof(T), cudaMemcpyDeviceToHost));
+}
 
 #endif  // SIMPLE_TENSOR_H_

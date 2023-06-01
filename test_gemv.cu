@@ -12,13 +12,16 @@
 
 ///////////////////////////// SOLVER //////////////////////////////
 
-SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor& vec, 
-                                    unsigned int num_kernels, unsigned int block_dim_x,
-                                    unsigned int block_dim_y, unsigned int grid_dim_x) {
+SimpleTensor<half> solve_gemv_with_params(const SimpleTensor<half>& mat, 
+                                          const SimpleTensor<half>& vec, 
+                                          unsigned int num_kernels, 
+                                          unsigned int block_dim_x,
+                                          unsigned int block_dim_y, 
+                                          unsigned int grid_dim_x) {
   assert(block_dim_y <= 32);
   unsigned int num_per_thread = mat.width_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 8);
-  SimpleTensor result(mat.height_, 1);
+  SimpleTensor<half> result(mat.height_, 1);
   if (num_kernels == 1) {
     assert(grid_dim_x == 1);
     dim3 grid_dim(grid_dim_x, mat.height_ / block_dim_y);
@@ -31,7 +34,7 @@ SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor&
 
   // num_kernels = 2
   assert(grid_dim_x > 1);
-  SimpleTensor mid_result(mat.height_, grid_dim_x);
+  SimpleTensor<half> mid_result(mat.height_, grid_dim_x);
   // launch kernel 1
   dim3 grid_dim_1(grid_dim_x, mat.height_ / block_dim_y);  
   dim3 block_dim_1(block_dim_x, block_dim_y);   
@@ -52,14 +55,14 @@ void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int nu
                            unsigned int grid_dim_x) {
   cudaSetDevice(0);
   // generate data
-  SimpleTensor mat = SimpleTensor(size, size);
-  SimpleTensor vec = SimpleTensor(size, 1);
+  SimpleTensor<half> mat(size, size);
+  SimpleTensor<half> vec(size, 1);
   mat.reset();
   vec.reset();
 
   // compute the dot product
   printf("solving...\n");
-  SimpleTensor res = SimpleTensor(size, 1);
+  SimpleTensor<half> res(size, 1);
 
   for (int i = 0; i < iter; ++i) {
     res = solve_gemv_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x);

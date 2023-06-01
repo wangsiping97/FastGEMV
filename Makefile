@@ -1,6 +1,6 @@
 EXECUTABLE := gemv
 
-CU_FILES   := test_gemv.cu fast_gemv.cu simple_tensor.cu
+CU_FILES   := test_gemv.cu fast_gemv.cu
 
 CU_DEPS    := fast_gemv.cuh
 
@@ -12,16 +12,16 @@ ARCH=$(shell uname | sed -e 's/-.*//g')
 
 OBJDIR=objs
 CXX=g++ -m64
-CXXFLAGS=-O3 -Wall
+CXXFLAGS=-O3 -Wall -std=c++17
 LDFLAGS=-L/usr/local/cuda/lib64/ -lcudart
 NVCC=nvcc
-NVCCFLAGS=-O3 -m64 -ccbin /usr/bin/gcc \
+NVCCFLAGS=-O3 -m64 -ccbin /usr/bin/gcc -std=c++17 \
   -gencode arch=compute_60,code=sm_60 \
   -gencode arch=compute_70,code=sm_70 \
   -gencode arch=compute_75,code=sm_75 \
   -gencode arch=compute_86,code=sm_86
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/test_gemv.o $(OBJDIR)/fast_gemv.o $(OBJDIR)/simple_tensor.o
+OBJS=$(OBJDIR)/main.o  $(OBJDIR)/test_gemv.o $(OBJDIR)/fast_gemv.o
 
 .PHONY: dirs clean
 
