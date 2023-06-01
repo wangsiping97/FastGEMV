@@ -8,15 +8,14 @@
 #include <iostream>
 
 ///////////////////////////// UTILITIES //////////////////////////////
+
 // Define the error checking function
 #define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
 
 void check(cudaError_t result, char const* const func, const char* const file,
            int const line);
 
-void print_cuda_info();
-
-///////////////////////////// SOLVER //////////////////////////////
+///////////////////////////// TENSOR //////////////////////////////
 
 class SimpleTensor {
  public:
@@ -67,9 +66,5 @@ class SimpleTensor {
   // device data
   half* data_;
 };
-
-SimpleTensor solve_gemv_with_params(const SimpleTensor& mat, const SimpleTensor& vec, 
-                                    unsigned int num_kernels, unsigned int block_dim_x,
-                                    unsigned int block_dim_y, unsigned int grid_dim_x);
 
 #endif  // SIMPLE_TENSOR_H_
