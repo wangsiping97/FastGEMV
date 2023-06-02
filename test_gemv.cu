@@ -38,19 +38,19 @@ SimpleTensor<half> solve_gemv_quantized_with_params(const SimpleTensor<int8_t>& 
 
   // num_kernels = 2
   assert(grid_dim_x > 1);
-  // SimpleTensor<half> mid_result(mat.height_, grid_dim_x);
-  // // launch kernel 1
-  // dim3 grid_dim_1(grid_dim_x, mat.height_ / block_dim_y);  
-  // dim3 block_dim_1(block_dim_x, block_dim_y);   
-  // gemv_fp16_multi_stage<<<grid_dim_1, block_dim_1>>>(
-  //     mat.data_, vec.data_, mid_result.data_, mat.width_, num_per_thread);
-  // checkCudaErrors(cudaPeekAtLastError());
-  // // launch kernel 2 (reduce)
-  // dim3 grid_dim_2(1, mat.height_ / 32);  
-  // dim3 block_dim_2(grid_dim_x, 32);
-  // gemv_reduce_fp16<<<grid_dim_2, block_dim_2>>>(mid_result.data_,
-  //                                               result.data_, grid_dim_x);
-  // checkCudaErrors(cudaPeekAtLastError());
+  SimpleTensor<half> mid_result(mat.height_, grid_dim_x);
+  // launch kernel 1
+  dim3 grid_dim_1(grid_dim_x, mat.height_ / block_dim_y);  
+  dim3 block_dim_1(block_dim_x, block_dim_y);   
+  gemv_quantized_fp16_multi_stage<<<grid_dim_1, block_dim_1>>>(
+      mat.data_, vec.data_, mid_result.data_, mat.width_, scale, zero_point, num_per_thread);
+  checkCudaErrors(cudaPeekAtLastError());
+  // launch kernel 2 (reduce)
+  dim3 grid_dim_2(1, mat.height_ / 32);  
+  dim3 block_dim_2(grid_dim_x, 32);
+  gemv_quantized_reduce_fp16<<<grid_dim_2, block_dim_2>>>(mid_result.data_,
+                                                result.data_, grid_dim_x);
+  checkCudaErrors(cudaPeekAtLastError());
   return result;
 }
 
