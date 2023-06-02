@@ -6,57 +6,37 @@
 #include <cuda_runtime.h>
 
 #include <stdio.h>
+#include <cstdint>
 
 ///////////////////////////// DATA TYPES //////////////////////////////
 
 struct half4 { half x, y, z, w; };
 struct int8_2 { int8_t x, y; };
-struct int4_2 {
-  int x: 4;
-  int y: 4;
+
+struct uint4_2 {
+  uint8_t data;
+
+  uint4_2(uint8_t x = 0, uint8_t y = 0) {
+    setX(x);
+    setY(y);
+  }
+
+  uint8_t getX() const {
+    return data & 0x0F;  // get the lower 4 bits
+  }
+
+  uint8_t getY() const {
+    return (data >> 4) & 0x0F;  // get the upper 4 bits
+  }
+
+  void setX(uint8_t x) {
+    data = (data & 0xF0) | (x & 0x0F);  // set the lower 4 bits
+  }
+
+  void setY(uint8_t y) {
+    data = (data & 0x0F) | ((y & 0x0F) << 4);  // set the upper 4 bits
+  }
 };
-
-// class uint4_t {
-// public: 
-//   uint4_t(int value)
-//     : storage(reinterpret_cast<uint8_t const &>(value) & kMask) {}
-  
-//   bool operator==(uint4_t const &rhs) const {
-//     return storage == rhs.storage;
-//   }
-
-//   bool operator!=(uint4_t const &rhs) const {
-//     return storage != rhs.storage;
-//   }
-
-//   bool operator<=(uint4_t const &rhs) const {
-//     return storage < rhs.storage;
-//   }
-
-//   bool operator<(uint4_t const &rhs) const {
-//     return storage < rhs.storage;
-//   }
-
-//   bool operator>=(uint4_t const &rhs) const {
-//     return !(*this < rhs);
-//   }
-
-//   bool operator>(uint4_t const &rhs) const {
-//     return !(*this <= rhs);
-//   }
-
-//   uint8_t value() {
-//     return storage;
-//   }
-
-// private:
-//   /// Number of bits
-//   static int const kBits = 4;
-//   /// Bitmask used to truncate from larger integers
-//   static uint8_t const kMask = uint8_t((1 << kBits) - 1);
-//   /// Data member
-//   uint8_t storage;
-// };
 
 ///////////////////////////// CUDA UTILITIES //////////////////////////////
 
