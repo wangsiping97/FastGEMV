@@ -7,6 +7,10 @@ void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int nu
                            unsigned int block_dim_x, unsigned int block_dim_y, 
                            unsigned int grid_dim_x);
 
+void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+                           unsigned int block_dim_x, unsigned int block_dim_y, 
+                           unsigned int grid_dim_x);
+
 int main(int argc, char** argv) {
   // parse commandline options
   int opt;
@@ -75,5 +79,6 @@ int main(int argc, char** argv) {
 
   printf("block_dim\t(%d, %d)\n", block_dim_x, block_dim_y);
   printf("grid_dim\t(%d, %d)\n", grid_dim_x, size / block_dim_y);
-  test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  // test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  test_gemv_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
 }

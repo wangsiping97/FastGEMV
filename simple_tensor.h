@@ -8,6 +8,9 @@
 #include <iostream>
 #include <cassert>
 
+#include "fast_gemv.cuh"
+#include "fast_gemv_quantized.cuh"
+
 ///////////////////////////// UTILITIES //////////////////////////////
 
 // Define the error checking function
@@ -82,6 +85,9 @@ void SimpleTensor<T>::reset() {
 
   if constexpr (std::is_same<T, half>::value) {
     generate_random_numbers<<<num_blocks, threads_per_block>>>(data_,
+                                                            total_elements);
+  } else if constexpr (std::is_same<T, int8_t>::value) {
+    generate_random_int8_numbers<<<num_blocks, threads_per_block>>>(data_,
                                                             total_elements);
   }
   checkCudaErrors(cudaPeekAtLastError());

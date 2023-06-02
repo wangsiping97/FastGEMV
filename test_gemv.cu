@@ -8,7 +8,49 @@
 #include <chrono>
 
 #include "fast_gemv.cuh"
+#include "fast_gemv_quantized.cuh"
 #include "simple_tensor.h"
+
+///////////////////////////// SOLVER (QUANTIZED) //////////////////////////////
+
+static const float scale = 0.01;
+static const int16_t zero_point = 0;
+
+void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+                           unsigned int block_dim_x, unsigned int block_dim_y, 
+                           unsigned int grid_dim_x) {
+  cudaSetDevice(4);
+  // generate data
+  SimpleTensor<int8_t> mat(size, size);
+  SimpleTensor<half> vec(size, 1);
+  mat.reset();
+  vec.reset();
+
+  SimpleTensor<half> res(size, 1);
+  SimpleTensor<float> table(256, size);
+
+  // init
+  dim3 grid_dim(1, size / 2);
+  dim3 block_dim(size / 8, 2);
+  init_table_int8<<<grid_dim, block_dim>>>(vec.data_, table.data_, size, scale, zero_point);
+  checkCudaErrors(cudaPeekAtLastError());
+
+  // solve gemv: this is only for size=512
+  dim3 grid_dim2(1, 16);
+  dim3 block_dim2(32, 32);
+  unsigned int num_per_thread = size / 1 / 32;
+  gemv_quantized_int8_single_stage<<<grid_dim2, block_dim2>>>(mat.data_, res.data_, table.data_, size, num_per_thread);
+  checkCudaErrors(cudaPeekAtLastError());
+
+  // check correctness
+  printf("checking...\n");
+  int threads_per_block = 256;
+  int num_blocks = (size + threads_per_block - 1) / threads_per_block;
+  check_quantized_correctness<<<num_blocks, threads_per_block>>>(
+      mat.device_data(), vec.device_data(), res.device_data(), scale, zero_point, size);
+  printf("checked\n");
+}
+
 
 ///////////////////////////// SOLVER //////////////////////////////
 

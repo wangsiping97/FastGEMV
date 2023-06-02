@@ -13,11 +13,11 @@ struct half4 { half x, y, z, w; };
 struct uint8_2 { uint8_t x, y; };
 struct float4_2 { float4 x, y; };
 
-// each thread computes 8 * 2(row) results
+// each thread computes 8 * 1 (row) results
 // gridDim.y = 128, blockDim.y = 2
 __global__ void init_table_int8(half* vec, float* table, unsigned int n, float scale, int16_t zero_point) {
   unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned int start_row = blockIdx.y * blockDim.y + threadIdx.y;
+  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
   float4* vec4 = reinterpret_cast<float4*>(vec);
   float4_2* table8 = reinterpret_cast<float4_2*>(table);
   if (idx >= n >> 3) {
@@ -28,20 +28,18 @@ __global__ void init_table_int8(half* vec, float* table, unsigned int n, float s
   const half2* vec_h2 = (half2*)&vec_val.y;
   const half2* vec_h3 = (half2*)&vec_val.z;
   const half2* vec_h4 = (half2*)&vec_val.w;
-  for (uint8_t i = start_row; i < start_row + blockDim.y; ++i) {
-    float4_2 res;
-    int8_t val = (int8_t)i;
-    res.x.x = (scale * (val - zero_point)) * static_cast<float>(vec_h1->x);
-    res.x.y = (scale * (val - zero_point)) * static_cast<float>(vec_h1->y);
-    res.x.z = (scale * (val - zero_point)) * static_cast<float>(vec_h2->x);
-    res.x.w = (scale * (val - zero_point)) * static_cast<float>(vec_h2->y);
-    res.y.x = (scale * (val - zero_point)) * static_cast<float>(vec_h3->x);
-    res.y.y = (scale * (val - zero_point)) * static_cast<float>(vec_h3->y);
-    res.y.z = (scale * (val - zero_point)) * static_cast<float>(vec_h4->x);
-    res.y.w = (scale * (val - zero_point)) * static_cast<float>(vec_h4->y);
-    // write res to table
-    table8[i * n / 8 + idx] = res;
-  }
+  float4_2 res;
+  int8_t val = (int8_t)row;
+  res.x.x = (scale * (val - zero_point)) * static_cast<float>(vec_h1->x);
+  res.x.y = (scale * (val - zero_point)) * static_cast<float>(vec_h1->y);
+  res.x.z = (scale * (val - zero_point)) * static_cast<float>(vec_h2->x);
+  res.x.w = (scale * (val - zero_point)) * static_cast<float>(vec_h2->y);
+  res.y.x = (scale * (val - zero_point)) * static_cast<float>(vec_h3->x);
+  res.y.y = (scale * (val - zero_point)) * static_cast<float>(vec_h3->y);
+  res.y.z = (scale * (val - zero_point)) * static_cast<float>(vec_h4->x);
+  res.y.w = (scale * (val - zero_point)) * static_cast<float>(vec_h4->y);
+  // write res to table
+  table8[row * n / 8 + idx] = res;
 }
 
 // num_per_thread >= 8
@@ -120,7 +118,7 @@ __global__ void generate_random_int8_numbers(int8_t* numbers, int Np) {
   if (i < Np) {
     curandState state;
     curand_init(clock64(), i, 0, &state);
-    numbers[i] = static_cast<int8_t>(curand(&state) % 128); // Random int8 number [-128, 127]
+    numbers[i] = static_cast<int8_t>(curand(&state) % 256 - 128); // Random int8 number [-128, 127]
   }
 }
 

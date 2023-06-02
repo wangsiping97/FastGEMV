@@ -1,7 +1,9 @@
 #ifndef FAST_GEMV_CUH_
 #define FAST_GEMV_CUH_
 
-#include "simple_tensor.h"
+#include <cuda.h>
+#include <cuda_fp16.h>
+#include <cuda_runtime.h>
 
 __global__ void generate_numbers(half* numbers, int Np);
 __global__ void generate_random_numbers(half* numbers, int Np);
