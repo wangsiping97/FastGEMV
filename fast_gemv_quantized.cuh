@@ -5,7 +5,7 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
-__global__ void gemv_quantized_int8_single_stage_native(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
+__global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
                               unsigned int num_per_thread);
 
 __global__ void generate_random_int8_numbers(int8_t* numbers, int Np);

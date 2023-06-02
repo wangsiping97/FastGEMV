@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
                                          {"block_x", required_argument, 0, 'x'},
                                          {"block_y", required_argument, 0, 'y'},
                                          {"grid_x", required_argument, 0, 'g'},
+                                         {"quantized", required_argument, 0, 'q'},
                                          {0, 0, 0, 0}};
 
   unsigned int size = 512;
@@ -28,8 +29,9 @@ int main(int argc, char** argv) {
   unsigned int block_dim_y = 4;
   unsigned int grid_dim_x = 1;
   unsigned int num_kernels = 1;
+  bool quantized = false;
 
-  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:q:", long_options, NULL)) != -1) {
     switch (opt) {
       case 's':
         if (optarg != NULL)
@@ -67,6 +69,12 @@ int main(int argc, char** argv) {
         else
           printf("grid_x option requires an argument\n");
         break;
+      case 'q':
+        if (optarg != NULL)
+          quantized = (bool)atoi(optarg);
+        else
+          printf("quantized option requires an argument\n");
+        break;
       default:
         printf("Invalid option. Usage: %s -s <size> -i <iter> -k <kernels> -x <block_x> -y <block_y> -g <grid_x>\n", argv[0]);
         return -1;
@@ -74,11 +82,10 @@ int main(int argc, char** argv) {
   }
 
   printf("size=%u, iter=%u\n", size, iter);
-
-  // test_gemv(size, iter);
-
   printf("block_dim\t(%d, %d)\n", block_dim_x, block_dim_y);
   printf("grid_dim\t(%d, %d)\n", grid_dim_x, size / block_dim_y);
-  // test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
-  test_gemv_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  if (!quantized)
+    test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  else
+    test_gemv_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
 }

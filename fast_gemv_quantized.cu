@@ -12,7 +12,7 @@
 struct half4 { half x, y, z, w; };
 struct int8_2 { int8_t x, y; };
 
-__global__ void gemv_quantized_int8_single_stage_native(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
+__global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
                               unsigned int num_per_thread) {
 float sum = 0;
   // each thread load num_per_thread elements from global
@@ -50,60 +50,6 @@ float sum = 0;
   }
 
   sum *= scale_f;
-
-  sum = warpReduceSum2(sum, blockDim.x);
-
-  if (blockDim.x <= WARP_SIZE) {
-    if (tid == 0) {
-      res[row] = __float2half(sum);
-    }
-    return;
-  }
-
-  // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
-  const int laneId = threadIdx.x % WARP_SIZE;
-  const int warpId = threadIdx.x / WARP_SIZE;
-  if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
-  __syncthreads();
-  // read from shared memory only if that warp existed
-  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
-  // Final reduce using first warp
-  if (warpId == 0) sum = warpReduceSum2(sum, blockDim.x / WARP_SIZE);
-  if (tid == 0) {
-    res[row] = __float2half(sum);
-  }
-}
-
-// num_per_thread >= 8
-__global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* res, float* table, unsigned int n,
-                              unsigned int num_per_thread) {
-  float sum = 0;
-  // each thread load num_per_thread elements from global
-  unsigned int tid = threadIdx.x;
-  unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
-  unsigned int start_idx = threadIdx.x;
-  half4* mat4 = reinterpret_cast<half4*>(mat);
-
-#pragma unroll
-  for (int iter = 0; iter < num_per_thread >> 3; iter++) {
-    unsigned int j = start_idx + iter * blockDim.x;
-    if (j < n >> 3) {
-      half4 mat_val = mat4[row * (n >> 3) + j];
-      const uint8_2* mat_h1 = (uint8_2*)&mat_val.x;
-      const uint8_2* mat_h2 = (uint8_2*)&mat_val.y;
-      const uint8_2* mat_h3 = (uint8_2*)&mat_val.z;
-      const uint8_2* mat_h4 = (uint8_2*)&mat_val.w;
-      sum += table[mat_h1->x * n + j * 8];
-      sum += table[mat_h1->y * n + j * 8 + 1];
-      sum += table[mat_h2->x * n + j * 8 + 2];
-      sum += table[mat_h2->y * n + j * 8 + 3];
-      sum += table[mat_h3->x * n + j * 8 + 4];
-      sum += table[mat_h3->y * n + j * 8 + 5];
-      sum += table[mat_h4->x * n + j * 8 + 6];
-      sum += table[mat_h4->y * n + j * 8 + 7];
-    }
-  }
 
   sum = warpReduceSum2(sum, blockDim.x);
 
