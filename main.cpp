@@ -11,6 +11,10 @@ void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsig
                            unsigned int block_dim_x, unsigned int block_dim_y, 
                            unsigned int grid_dim_x);
 
+void test_gemv_int4_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+                           unsigned int block_dim_x, unsigned int block_dim_y, 
+                           unsigned int grid_dim_x);
+
 int main(int argc, char** argv) {
   // parse commandline options
   int opt;
@@ -20,7 +24,7 @@ int main(int argc, char** argv) {
                                          {"block_x", required_argument, 0, 'x'},
                                          {"block_y", required_argument, 0, 'y'},
                                          {"grid_x", required_argument, 0, 'g'},
-                                         {"quantized", required_argument, 0, 'q'},
+                                         {"bits", required_argument, 0, 'b'},
                                          {0, 0, 0, 0}};
 
   unsigned int size = 512;
@@ -29,9 +33,9 @@ int main(int argc, char** argv) {
   unsigned int block_dim_y = 4;
   unsigned int grid_dim_x = 1;
   unsigned int num_kernels = 1;
-  bool quantized = false;
+  unsigned int bits = 16;
 
-  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:q:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:b:", long_options, NULL)) != -1) {
     switch (opt) {
       case 's':
         if (optarg != NULL)
@@ -69,11 +73,11 @@ int main(int argc, char** argv) {
         else
           printf("grid_x option requires an argument\n");
         break;
-      case 'q':
+      case 'b':
         if (optarg != NULL)
-          quantized = (bool)atoi(optarg);
+          bits = (unsigned)atoi(optarg);
         else
-          printf("quantized option requires an argument\n");
+          printf("bits option requires an argument\n");
         break;
       default:
         printf("Invalid option. Usage: %s -s <size> -i <iter> -k <kernels> -x <block_x> -y <block_y> -g <grid_x>\n", argv[0]);
@@ -84,8 +88,13 @@ int main(int argc, char** argv) {
   printf("size=%u, iter=%u\n", size, iter);
   printf("block_dim\t(%d, %d)\n", block_dim_x, block_dim_y);
   printf("grid_dim\t(%d, %d)\n", grid_dim_x, size / block_dim_y);
-  if (!quantized)
+  unsigned int num_per_thread = size / (block_dim_x * grid_dim_x);
+  printf("num_per_thread=%d\n", num_per_thread);
+  if (bits == 16)
     test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
-  else
+  if (bits == 8)
     test_gemv_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  if (bits == 4)
+    test_gemv_int4_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  else return -1;
 }

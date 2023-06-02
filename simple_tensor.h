@@ -73,6 +73,9 @@ void SimpleTensor<T>::reset() {
   } else if constexpr (std::is_same<T, int8_t>::value) {
     generate_random_int8_numbers<<<num_blocks, threads_per_block>>>(data_,
                                                             total_elements);
+  } else if constexpr (std::is_same<T, uint4_2>::value) {
+    generate_random_int4_numbers<<<num_blocks, threads_per_block>>>(data_,
+                                                            total_elements);
   }
   checkCudaErrors(cudaPeekAtLastError());
 }

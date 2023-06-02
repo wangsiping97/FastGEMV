@@ -10,9 +10,6 @@
 
 ///////////////////////////// DATA TYPES //////////////////////////////
 
-struct half4 { half x, y, z, w; };
-struct int8_2 { int8_t x, y; };
-
 struct uint4_2 {
   uint8_t data;
 
@@ -21,22 +18,26 @@ struct uint4_2 {
     setY(y);
   }
 
-  uint8_t getX() const {
+  __host__ __device__ uint8_t getX() const {
     return data & 0x0F;  // get the lower 4 bits
   }
 
-  uint8_t getY() const {
+  __host__ __device__ uint8_t getY() const {
     return (data >> 4) & 0x0F;  // get the upper 4 bits
   }
 
-  void setX(uint8_t x) {
+  __host__ __device__ void setX(uint8_t x) {
     data = (data & 0xF0) | (x & 0x0F);  // set the lower 4 bits
   }
 
-  void setY(uint8_t y) {
+  __host__ __device__ void setY(uint8_t y) {
     data = (data & 0x0F) | ((y & 0x0F) << 4);  // set the upper 4 bits
   }
 };
+
+struct half4 { half x, y, z, w; };
+struct int8_2 { int8_t x, y; };
+struct uint4_2_4 { uint4_2 x, y, z, w; };
 
 ///////////////////////////// CUDA UTILITIES //////////////////////////////
 
@@ -51,5 +52,7 @@ void check(cudaError_t result, char const* const func, const char* const file,
 __global__ void generate_numbers(half* numbers, int Np);
 __global__ void generate_random_numbers(half* numbers, int Np);
 __global__ void generate_random_int8_numbers(int8_t* numbers, int Np);
+__global__ void generate_int4_numbers(uint4_2* numbers, int Np);
+__global__ void generate_random_int4_numbers(uint4_2* numbers, int Np);
 
 #endif // UTILITY_H_
