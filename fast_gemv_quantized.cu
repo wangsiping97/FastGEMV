@@ -5,12 +5,13 @@
 #include <driver_functions.h>
 #include <stdio.h>
 
+#include "utility.cuh"
 #include "fast_gemv_quantized.cuh"
 
 #define WARP_SIZE 32
 
-struct half4 { half x, y, z, w; };
-struct int8_2 { int8_t x, y; };
+// struct half4 { half x, y, z, w; };
+// struct int8_2 { int8_t x, y; };
 
 __global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
                               unsigned int num_per_thread) {
@@ -159,8 +160,6 @@ __global__ void gemv_quantized_reduce_fp16(half* mid_res, half* res,
   }
 }
 
-///////////////////////////// UTILITIES //////////////////////////////
-
 __device__ __forceinline__ float warpReduceSum2(float sum,
                                                unsigned int blockSize) {
   if (blockSize >= 32)
@@ -174,15 +173,6 @@ __device__ __forceinline__ float warpReduceSum2(float sum,
   if (blockSize >= 2)
     sum += __shfl_down_sync(0xffffffff, sum, 1);  // 0-1, 2-3, 4-5, etc.
   return sum;
-}
-
-__global__ void generate_random_int8_numbers(int8_t* numbers, int Np) {
-  int i = threadIdx.x + blockIdx.x * blockDim.x;
-  if (i < Np) {
-    curandState state;
-    curand_init(clock64(), i, 0, &state);
-    numbers[i] = static_cast<int8_t>(curand(&state) % 256 - 128); // Random int8 number [-128, 127]
-  }
 }
 
 __global__ void check_quantized_correctness(int8_t* mat, half* vec, half* res, half scale, half zero_point, int n) {

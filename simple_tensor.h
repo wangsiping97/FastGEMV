@@ -8,24 +8,8 @@
 #include <iostream>
 #include <cassert>
 
-#include "fast_gemv.cuh"
-#include "fast_gemv_quantized.cuh"
+#include "utility.cuh"
 
-///////////////////////////// UTILITIES //////////////////////////////
-
-// Define the error checking function
-#define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
-
-inline void check(cudaError_t result, char const* const func, const char* const file,
-           int const line) {
-  if (result) {
-    fprintf(stderr, "CUDA error = %s at %s:%d '%s'\n",
-            cudaGetErrorString(result), file, line, func);
-    exit(1);
-  }
-}
-
-///////////////////////////// TENSOR //////////////////////////////
 template <typename T>
 class SimpleTensor {
  public:

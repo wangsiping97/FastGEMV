@@ -7,11 +7,12 @@
 #include <cassert>
 #include <chrono>
 
+#include "utility.cuh"
 #include "fast_gemv.cuh"
 #include "fast_gemv_quantized.cuh"
 #include "simple_tensor.h"
 
-///////////////////////////// SOLVER (QUANTIZED) //////////////////////////////
+///////////////////////////// SOLVER //////////////////////////////
 
 static const half scale = 0.01;
 static const half zero_point = 0.01;
@@ -54,36 +55,6 @@ SimpleTensor<half> solve_gemv_quantized_with_params(const SimpleTensor<int8_t>& 
   return result;
 }
 
-void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
-                           unsigned int block_dim_x, unsigned int block_dim_y, 
-                           unsigned int grid_dim_x) {
-  cudaSetDevice(0);
-  // generate data
-  SimpleTensor<int8_t> mat(size, size);
-  SimpleTensor<half> vec(size, 1);
-  mat.reset();
-  vec.reset();
-
-  // compute the dot product
-  printf("solving...\n");
-  SimpleTensor<half> res(size, 1);
-
-  for (int i = 0; i < iter; ++i) {
-    res = solve_gemv_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
-  }
-
-  // check correctness
-  printf("checking...\n");
-  int threads_per_block = 256;
-  int num_blocks = (size + threads_per_block - 1) / threads_per_block;
-  check_quantized_correctness<<<num_blocks, threads_per_block>>>(
-      mat.device_data(), vec.device_data(), res.device_data(), scale, zero_point, size);
-  printf("checked\n");
-}
-
-
-///////////////////////////// SOLVER //////////////////////////////
-
 SimpleTensor<half> solve_gemv_with_params(const SimpleTensor<half>& mat, 
                                           const SimpleTensor<half>& vec, 
                                           unsigned int num_kernels, 
@@ -122,6 +93,35 @@ SimpleTensor<half> solve_gemv_with_params(const SimpleTensor<half>& mat,
   return result;
 }
 
+///////////////////////////// TEST //////////////////////////////
+
+void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+                           unsigned int block_dim_x, unsigned int block_dim_y, 
+                           unsigned int grid_dim_x) {
+  cudaSetDevice(0);
+  // generate data
+  SimpleTensor<int8_t> mat(size, size);
+  SimpleTensor<half> vec(size, 1);
+  mat.reset();
+  vec.reset();
+
+  // compute the dot product
+  printf("solving...\n");
+  SimpleTensor<half> res(size, 1);
+
+  for (int i = 0; i < iter; ++i) {
+    res = solve_gemv_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+  }
+
+  // check correctness
+  printf("checking...\n");
+  int threads_per_block = 256;
+  int num_blocks = (size + threads_per_block - 1) / threads_per_block;
+  check_quantized_correctness<<<num_blocks, threads_per_block>>>(
+      mat.device_data(), vec.device_data(), res.device_data(), scale, zero_point, size);
+  printf("checked\n");
+}
+
 void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
                            unsigned int block_dim_x, unsigned int block_dim_y, 
                            unsigned int grid_dim_x) {
@@ -147,27 +147,4 @@ void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int nu
   check_correctness<<<num_blocks, threads_per_block>>>(
       mat.device_data(), vec.device_data(), res.device_data(), size);
   printf("checked\n");
-}
-
-///////////////////////////// UTILITIES //////////////////////////////
-
-void print_cuda_info() {
-  // for fun, just print out some stats on the machine
-
-  int deviceCount = 0;
-  cudaError_t err = cudaGetDeviceCount(&deviceCount);
-
-  printf("---------------------------------------------------------\n");
-  printf("Found %d CUDA devices\n", deviceCount);
-
-  for (int i = 0; i < deviceCount; i++) {
-    cudaDeviceProp deviceProps;
-    cudaGetDeviceProperties(&deviceProps, i);
-    printf("Device %d: %s\n", i, deviceProps.name);
-    printf("   SMs:        %d\n", deviceProps.multiProcessorCount);
-    printf("   Global mem: %.0f MB\n",
-           static_cast<float>(deviceProps.totalGlobalMem) / (1024 * 1024));
-    printf("   CUDA Cap:   %d.%d\n", deviceProps.major, deviceProps.minor);
-  }
-  printf("---------------------------------------------------------\n");
 }

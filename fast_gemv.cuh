@@ -5,9 +5,6 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
-__global__ void generate_numbers(half* numbers, int Np);
-__global__ void generate_random_numbers(half* numbers, int Np);
-
 __global__ void check_correctness(half* mat, half* vec, half* res, int n);
 
 // one thread for one dot product

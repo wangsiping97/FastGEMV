@@ -5,6 +5,7 @@
 #include <driver_functions.h>
 #include <stdio.h>
 
+#include "utility.cuh"
 #include "fast_gemv.cuh"
 
 #define WARP_SIZE 32
@@ -148,8 +149,6 @@ __global__ void gemv_reduce_fp16(half* mid_res, half* res,
   }
 }
 
-///////////////////////////// UTILITIES //////////////////////////////
-
 __device__ __forceinline__ float warpReduceSum(float sum,
                                                unsigned int blockSize) {
   if (blockSize >= 32)
@@ -163,22 +162,6 @@ __device__ __forceinline__ float warpReduceSum(float sum,
   if (blockSize >= 2)
     sum += __shfl_down_sync(0xffffffff, sum, 1);  // 0-1, 2-3, 4-5, etc.
   return sum;
-}
-
-__global__ void generate_random_numbers(half* numbers, int Np) {
-  int i = threadIdx.x + blockIdx.x * blockDim.x;
-  if (i < Np) {
-    curandState state;
-    curand_init(clock64(), i, 0, &state);
-    numbers[i] = __float2half(curand_uniform(&state));
-  }
-}
-
-__global__ void generate_numbers(half* numbers, int Np) {
-  int i = threadIdx.x + blockIdx.x * blockDim.x;
-  if (i < Np) {
-    numbers[i] = __float2half(i / 1000.0);
-  }
 }
 
 __global__ void check_correctness(half* mat, half* vec, half* res, int n) {
