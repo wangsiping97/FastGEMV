@@ -49,10 +49,8 @@ void print_cuda_info();
 void check(cudaError_t result, char const* const func, const char* const file,
            int const line);
 
-__global__ void generate_numbers(half* numbers, int Np);
 __global__ void generate_random_numbers(half* numbers, int Np);
 __global__ void generate_random_int8_numbers(int8_t* numbers, int Np);
-__global__ void generate_int4_numbers(uint4_2* numbers, int Np);
 __global__ void generate_random_int4_numbers(uint4_2* numbers, int Np);
 
 #endif // UTILITY_H_

@@ -64,7 +64,7 @@ SimpleTensor<half> solve_gemv_int8_quantized_with_params(const SimpleTensor<int8
   assert(block_dim_y <= 32);
   unsigned int num_per_thread = mat.width_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 8);
-  SimpleTensor<half> result(mat.height_, 1);
+  SimpleTensor<half> result(vec.height_, 1);
   if (num_kernels == 1) {
     assert(grid_dim_x == 1);
     dim3 grid_dim(grid_dim_x, mat.height_ / block_dim_y);
@@ -103,7 +103,7 @@ SimpleTensor<half> solve_gemv_with_params(const SimpleTensor<half>& mat,
   assert(block_dim_y <= 32);
   unsigned int num_per_thread = mat.width_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 8);
-  SimpleTensor<half> result(mat.height_, 1);
+  SimpleTensor<half> result(vec.height_, 1);
   if (num_kernels == 1) {
     assert(grid_dim_x == 1);
     dim3 grid_dim(grid_dim_x, mat.height_ / block_dim_y);
