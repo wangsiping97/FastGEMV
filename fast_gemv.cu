@@ -9,10 +9,11 @@
 #include "fast_gemv.cuh"
 
 #define WARP_SIZE 32
+#define SHARED_MEM_MAX_ROWS 64
 
 ///////////////////////////// NORMAL //////////////////////////////
 // thread_per_block = blockDim.x
-// blockDim.y <= 32
+// blockDim.y <= SHARED_MEM_MAX_ROWS
 __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int num_per_thread) {
   float sum = 0;
@@ -58,7 +59,7 @@ __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
@@ -73,7 +74,7 @@ __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned
 }
 
 // thread_per_block = blockDim.x
-// blockDim.y <= 32
+// blockDim.y <= SHARED_MEM_MAX_ROWS
 __global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
                                 unsigned int n, unsigned int num_per_thread) {
   float sum = 0;
@@ -120,7 +121,7 @@ __global__ void gemv_fp16_multi_stage(half* mat, half* vec, half* mid_res,
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
@@ -186,7 +187,7 @@ __global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* vec, half* r
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
@@ -201,7 +202,7 @@ __global__ void gemv_quantized_int8_single_stage(int8_t* mat, half* vec, half* r
 }
 
 // thread_per_block = blockDim.x
-// blockDim.y <= 32
+// blockDim.y <= SHARED_MEM_MAX_ROWS
 __global__ void gemv_quantized_int8_multi_stage(int8_t* mat, half* vec, half* mid_res,
                                 unsigned int n, half scale, half zero_point, unsigned int num_per_thread) {
   float sum = 0;
@@ -253,7 +254,7 @@ __global__ void gemv_quantized_int8_multi_stage(int8_t* mat, half* vec, half* mi
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
@@ -340,7 +341,7 @@ __global__ void gemv_quantized_int4_single_stage(uint4_2* mat, half* vec, half* 
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
@@ -425,7 +426,7 @@ __global__ void gemv_quantized_int4_multi_stage(uint4_2* mat, half* vec, half* m
   }
 
   // Shared mem for partial sums (one per warp in the block)
-  static __shared__ float warpLevelSums[32][WARP_SIZE];
+  static __shared__ float warpLevelSums[SHARED_MEM_MAX_ROWS][WARP_SIZE];
   const int laneId = threadIdx.x % WARP_SIZE;
   const int warpId = threadIdx.x / WARP_SIZE;
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
