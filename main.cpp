@@ -7,7 +7,7 @@ void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int nu
                            unsigned int block_dim_x, unsigned int block_dim_y, 
                            unsigned int grid_dim_x);
 
-void test_gemv_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
+void test_gemv_int8_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
                            unsigned int block_dim_x, unsigned int block_dim_y, 
                            unsigned int grid_dim_x);
 
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
   if (bits == 16)
     test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
   if (bits == 8)
-    test_gemv_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+    test_gemv_int8_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
   if (bits == 4)
     test_gemv_int4_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
   else return -1;
