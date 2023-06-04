@@ -8,9 +8,6 @@
 #include "utility.cuh"
 #include "fast_gemv.cuh"
 
-#define WARP_SIZE 32
-#define SHARED_MEM_MAX_ROWS 64
-
 ///////////////////////////// NORMAL //////////////////////////////
 // thread_per_block = blockDim.x
 // blockDim.y <= SHARED_MEM_MAX_ROWS

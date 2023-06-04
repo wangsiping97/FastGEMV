@@ -8,12 +8,12 @@ void test_gemv_with_params(unsigned int size, unsigned int iter, unsigned int nu
                            unsigned int grid_dim_x);
 
 void test_gemv_int8_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
-                           unsigned int block_dim_x, unsigned int block_dim_y, 
-                           unsigned int grid_dim_x);
+                           unsigned int block_dim_x, unsigned int block_dim_y, unsigned int grid_dim_x,
+                           float scale, float zero_point);
 
 void test_gemv_int4_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
-                           unsigned int block_dim_x, unsigned int block_dim_y, 
-                           unsigned int grid_dim_x);
+                           unsigned int block_dim_x, unsigned int block_dim_y, unsigned int grid_dim_x,
+                           float scale, float zero_point);
 
 int main(int argc, char** argv) {
   // parse commandline options
@@ -25,6 +25,8 @@ int main(int argc, char** argv) {
                                          {"block_y", required_argument, 0, 'y'},
                                          {"grid_x", required_argument, 0, 'g'},
                                          {"bits", required_argument, 0, 'b'},
+                                         {"scale", required_argument, 0, 'u'},
+                                         {"zero_point", required_argument, 0, 'v'},
                                          {0, 0, 0, 0}};
 
   unsigned int size = 512;
@@ -34,8 +36,10 @@ int main(int argc, char** argv) {
   unsigned int grid_dim_x = 1;
   unsigned int num_kernels = 1;
   unsigned int bits = 16;
+  float scale = 0.0625;
+  float zero_point = 0.01;
 
-  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:b:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "s:i:k:x:y:g:b:u:v:", long_options, NULL)) != -1) {
     switch (opt) {
       case 's':
         if (optarg != NULL)
@@ -79,6 +83,18 @@ int main(int argc, char** argv) {
         else
           printf("bits option requires an argument\n");
         break;
+      case 'u':
+        if (optarg != NULL)
+          scale = atof(optarg);
+        else
+          printf("scale option requires an argument\n");
+        break;
+      case 'v':
+        if (optarg != NULL)
+          zero_point = atof(optarg);
+        else
+          printf("zero_point option requires an argument\n");
+        break;
       default:
         printf("Invalid option. Usage: %s -s <size> -i <iter> -k <kernels> -x <block_x> -y <block_y> -g <grid_x>\n", argv[0]);
         return -1;
@@ -90,11 +106,14 @@ int main(int argc, char** argv) {
   printf("grid_dim\t(%d, %d)\n", grid_dim_x, size / block_dim_y);
   unsigned int num_per_thread = size / (block_dim_x * grid_dim_x);
   printf("num_per_thread=%d\n", num_per_thread);
+  if (bits != 16) {
+    printf("scale=%f, zero_point=%f\n", scale, zero_point);
+  }
   if (bits == 16)
     test_gemv_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
   if (bits == 8)
-    test_gemv_int8_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+    test_gemv_int8_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x, scale, zero_point);
   if (bits == 4)
-    test_gemv_int4_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+    test_gemv_int4_quantized_with_params(size, iter, num_kernels, block_dim_x, block_dim_y, grid_dim_x, scale, zero_point);
   else return -1;
 }

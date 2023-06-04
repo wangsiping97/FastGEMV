@@ -13,17 +13,17 @@
 
 ///////////////////////////// SOLVER //////////////////////////////
 
-static const half scale = 0.0625;
-static const half zero_point = 0.01;
-
 SimpleTensor<half> solve_gemv_int4_quantized_with_params(const SimpleTensor<uint4_2>& mat, 
                                                     const SimpleTensor<half>& vec, 
                                                     unsigned int num_kernels, 
                                                     unsigned int block_dim_x,
                                                     unsigned int block_dim_y, 
-                                                    unsigned int grid_dim_x) {
+                                                    unsigned int grid_dim_x,
+                                                    float scale_f, float zero_point_f) {
+  half scale = __float2half(scale_f);
+  half zero_point = __float2half(zero_point_f);
   assert(mat.width_ * 2 == vec.height_);
-  assert(block_dim_y <= 32);
+  assert(block_dim_y <= SHARED_MEM_MAX_ROWS);
   unsigned int num_per_thread = vec.height_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 16);
   SimpleTensor<half> result(vec.height_, 1);
@@ -59,9 +59,12 @@ SimpleTensor<half> solve_gemv_int8_quantized_with_params(const SimpleTensor<int8
                                                     unsigned int num_kernels, 
                                                     unsigned int block_dim_x,
                                                     unsigned int block_dim_y, 
-                                                    unsigned int grid_dim_x) {
+                                                    unsigned int grid_dim_x,
+                                                    float scale_f, float zero_point_f) {
+  half scale = __float2half(scale_f);
+  half zero_point = __float2half(zero_point_f);
   assert(mat.width_ == vec.height_);
-  assert(block_dim_y <= 32);
+  assert(block_dim_y <= SHARED_MEM_MAX_ROWS);
   unsigned int num_per_thread = mat.width_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 8);
   SimpleTensor<half> result(vec.height_, 1);
@@ -100,7 +103,7 @@ SimpleTensor<half> solve_gemv_with_params(const SimpleTensor<half>& mat,
                                           unsigned int block_dim_y, 
                                           unsigned int grid_dim_x) {
   assert(mat.width_ == vec.height_);
-  assert(block_dim_y <= 32);
+  assert(block_dim_y <= SHARED_MEM_MAX_ROWS);
   unsigned int num_per_thread = mat.width_ / (block_dim_x * grid_dim_x);
   assert(num_per_thread >= 8);
   SimpleTensor<half> result(vec.height_, 1);
@@ -192,8 +195,8 @@ __global__ void check_int4_quantized_correctness(uint4_2* mat, half* vec, half* 
 }
 
 void test_gemv_int4_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
-                           unsigned int block_dim_x, unsigned int block_dim_y, 
-                           unsigned int grid_dim_x) {
+                           unsigned int block_dim_x, unsigned int block_dim_y, unsigned int grid_dim_x,
+                           float scale, float zero_point) {
   cudaSetDevice(0);
   // generate data
   const unsigned int mat_width = size / 2;
@@ -206,7 +209,7 @@ void test_gemv_int4_quantized_with_params(unsigned int size, unsigned int iter, 
   printf("solving...\n");
   SimpleTensor<half> res(size, 1);
   for (int i = 0; i < iter; ++i) {
-    res = solve_gemv_int4_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+    res = solve_gemv_int4_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x, scale, zero_point);
   }
 
   // check correctness
@@ -219,8 +222,8 @@ void test_gemv_int4_quantized_with_params(unsigned int size, unsigned int iter, 
 }
 
 void test_gemv_int8_quantized_with_params(unsigned int size, unsigned int iter, unsigned int num_kernels, 
-                           unsigned int block_dim_x, unsigned int block_dim_y, 
-                           unsigned int grid_dim_x) {
+                           unsigned int block_dim_x, unsigned int block_dim_y, unsigned int grid_dim_x,
+                           float scale, float zero_point) {
   cudaSetDevice(0);
   // generate data
   SimpleTensor<int8_t> mat(size, size);
@@ -233,7 +236,7 @@ void test_gemv_int8_quantized_with_params(unsigned int size, unsigned int iter, 
   SimpleTensor<half> res(size, 1);
 
   for (int i = 0; i < iter; ++i) {
-    res = solve_gemv_int8_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x);
+    res = solve_gemv_int8_quantized_with_params(mat, vec, num_kernels, block_dim_x, block_dim_y, grid_dim_x, scale, zero_point);
   }
 
   // check correctness

@@ -5,6 +5,9 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
+#define WARP_SIZE 32
+#define SHARED_MEM_MAX_ROWS 64
+
 ///////////////////////////// NORMAL //////////////////////////////
 __global__ void gemv_fp16_single_stage(half* mat, half* vec, half* res, unsigned int n,
                               unsigned int num_per_thread);
