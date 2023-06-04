@@ -4,6 +4,10 @@ This repo provides a set of kernel functions that can compute GEMV (matrix-vecto
 
 ## Requirements
 
+```bash
+sudo apt install -y cuda-11-7 nsight-systems-2023.1.2 nsight-compute-2023.1.1
+```
+
 ## Usage
 
 ```bash
@@ -37,4 +41,4 @@ The user can try multiple params of blockDim and gridDim to find out the best co
 
 ## Optimization Strategy and Results
 
-See [here](./method_and_result.md)
+See [here](./method_and_result.md).
