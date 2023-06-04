@@ -8,7 +8,9 @@ We implemented and benchmarked the following cases:
 - matrix: int8 (quantized with fp16 scale/zero point), vector: fp16;
 - matrix: int4 (quantized with fp16 scale/zero point), vector: fp16.
 
-The size of the matrix and vector varies from 512 to 16384.
+The size of the matrix and vector varies from 512 to 16384. 
+
+On P100, we can have at most 2.7x speedup than pytorch baseline; on 3090 Ti, we can have at most 1.4x speedup.
 
 ## Requirements
 
@@ -17,6 +19,19 @@ sudo apt install -y cuda-11-7 nsight-systems-2023.1.2 nsight-compute-2023.1.1
 ```
 
 ## Usage
+
+### How to run baseline (pytorch)
+
+Make sure you have correctly installed pytorch.
+
+```bash
+# using Nsight
+$ nsys profile --stats=true --force-overwrite true -o <report_name> python baseline.py -size <size>
+```
+
+For baseline result, see [here](./method_and_result.md).
+
+### How to run fastGEMV (this repo)
 
 ```bash
 $ make
