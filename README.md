@@ -17,7 +17,7 @@ $ nsys profile --stats=true --force-overwrite true -o report ./gemv -s <matrix_s
 
 - `blockDim.x` & `blockDim.y`: The block dimension when launching the kernel, both should be an integer power of 2. 
 
-- `gridDim.x`: The grid dimension when launching the kernel. Only `gridDim.x` is needed, `gridDim.y` can be computed as `matrix_size / gridDim.x`.
+- `gridDim.x`: The grid dimension when launching the kernel. Only `gridDim.x` is needed, `gridDim.y` can be computed as `matrix_size / blockDim.y`.
 
 - `num_iterations`: Number of iterations to do the test. If using Nsight to profile the runtime, it would be better to use a large iteration to get more precise values. 
 
