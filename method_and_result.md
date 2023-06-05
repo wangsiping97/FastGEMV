@@ -105,6 +105,8 @@ Total GEMV kernel(s) average runtime (ns):
 | 8192  | 618377.7  | 229488.3  | 2.695   |
 | 16384 | 1588132.0 | 891879.9  | 1.781   |
 
+![Runtime P100](./pics/Runtime%20(ns)%20-%20P100.png)
+
 Estimated BW (Max: 732 GB/s):
 
 | Size  | Pytorch | My Kernel |
@@ -115,6 +117,8 @@ Estimated BW (Max: 732 GB/s):
 | 4096  | 333.284 | 533.081   |
 | 8192  | 202.083 | 584.999   |
 | 16384 | 320.796 | 602.028   |
+
+![BW P100](./pics/Estimated%20Achieved%20Bandwidth%20(GB_s)%20-%20P100.png)
 
 Here are the parameters used for above results: 
 
@@ -142,6 +146,8 @@ Total GEMV kernel(s) average runtime (ns):
 | 8192  | 159163.1 | 156448.3  | 82325.7        | 49884.9        |
 | 16384 | 691660.6 | 609235.0  | 310524.5       | 162752.0       |
 
+![Runtime 3090](./pics/Runtime%20(ns)%20-%203090.png)
+
 Estimated BW (Max: 936.19 GB/s):
 
 | Size  | Pytorch | My Kernel | int8 Quantized | int4 Quantized |
@@ -152,6 +158,8 @@ Estimated BW (Max: 936.19 GB/s):
 | 4096  | 729.295 | 826.432   | 746.741        | 526.263        |
 | 8192  | 820.615 | 858.533   | 816.357        | 674.608        |
 | 16384 | 776.300 | 881.759   | 865.513        | 826.690        |
+
+![Runtime 3090](./pics/Estimated%20Achieved%20Bandwidth%20(GB_s)%20-%203090.png)
 
 Here are the parameters used for above results: 
 
