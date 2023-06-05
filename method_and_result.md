@@ -73,7 +73,7 @@ struct half4 { half x, y, z, w; };
 struct int8_2 { int8_t x, y; };
 ```
 
-When the vector is in fp16 and the matrix is in `int4`, based on the experiments from the previous cases, we found that it would be more efficient if each thread handles 16 or more numbers (i.e., `size / p` >= 16). Therefore, we tried to fetch 16 consecutive numbers from both the vector and the matrix at a time, at `float4` and `uint4_2_4` objects respectively: 
+When the vector is in fp16 and the matrix is in `int4`, based on the experiments from the previous cases, we found that it would be more efficient if each thread handles 16 numbers than 8 numbers. Therefore, we tried to fetch 16 consecutive numbers from both the vector and the matrix at a time, at `float4` and `uint4_2_4` objects respectively: 
 
 ![5](./pics/5.png)
 
@@ -95,17 +95,27 @@ struct uint4_2 {
 struct uint4_2_4 { uint4_2 x, y, z, w; };
 ```
 
-Note that the size of `uint4_2` is exactly 1 byte for 2 4-bit integers, it has higher memory efficiency than the [uint4b_t](https://github.com/NVIDIA/cutlass/blob/9b8166e3f0ea785300af85449210d01952a4107e/include/cutlass/integer_subbyte.h#L52) defined by CUTLASS.
+The size of `uint4_2` is exactly 1 byte for 2 4-bit integers. It has higher memory efficiency than the [uint4b_t](https://github.com/NVIDIA/cutlass/blob/9b8166e3f0ea785300af85449210d01952a4107e/include/cutlass/integer_subbyte.h#L52) defined by CUTLASS.
 
 There is still more to explore in the vectorization side. For example, the first version of this project was implemented on P100, and we can try loading even more bytes at a time on newer machines. 
 
 ### GPU thread layout
 
+We decided to have `m * p` threads per block, in each row `i`, `p` threads computes the dot product of `matrix[i]` and the vector. In this way, each block will compute `m` elements in the result vector. 
+
+![6](./pics/6.png)
+
+The grid layout, therefore, would be `(n / m, 1)`, where `n` is the side length of the matrix. 
+
+We also tried to have multiple `y` blocks per row to compute an intermediate result matrix (`n * y`) and then reduce the numbers in the intermediate result in each row to obtain the result vector using another kernel, shown as below: 
+
+![7](./pics/7.png)
+
+Using two kernels here can reduce the synchronization time between blocks and increase the utilization of the GPU resource in the reduction stage. However, this strategy yields close but slightly higher runtime comparing to the previous single-block-per-row solution.
+
 ### Other attempted methods
 
 #### Shared memory
-
-#### 2 kernels
 
 #### Hash table (quantized int8)
 
