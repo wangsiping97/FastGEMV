@@ -6,20 +6,16 @@
 
 Instead of having one thread to produce 1 component of the result vector by computing the dot product between each row of the matrix and the vector, we had `p` threads to be responsible for one row, and each thread is responsible for `size / p` elements both in the matrix and in the vector.
 
-![1](/pics/1.png)
+This is the big picture of our algorithm: 
 
-As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result`.  
+![1](./pics/1.png)
 
-### Reduce sum
+As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result[i]`. 
 
-When adding partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to cutlass's (warp and block reduction)[https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h]. More specifically: 
+Hence, the problem can be divided into 2 parts: 
 
-- If `p` is smaller than `WARP_SIZE`, we can directly get the sum of these `p` values by calling a `warpReduceSum()`;
-- If `p` is greater than `WARP_SIZE`, assuming there are `m` warps (`m` <= `WARP SIZE`) per row, then there are 2 steps: 
-  - step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
-  - step 2: Each warp `i` loads its sum, `sum_i`, to the shared memory. The first `m` threads in the first warp reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`. 
-
-![2](/pics/2.png)
+- How to optimize the computation time of generating the partial result in a single thread?
+- How to optimize the addition of each partial results in the same row? 
 
 ### Vectorization
 
@@ -28,6 +24,43 @@ When adding partial results computed by each thread, instead of summing up the v
 #### Quantized int8
 
 #### Quantized int4
+
+### Reduce sum
+
+When adding partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to CUTLASS's [warp and block reduction](https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h). Specifically, we have a self-implemented `warpReduceSum()` like this: 
+
+```c++
+__device__ __forceinline__ float warpReduceSum(float sum,
+                                               unsigned int p) {
+  if (p >= 32)
+    sum += __shfl_down_sync(0xffffffff, sum, 16);  // 0-16, 1-17, 2-18, etc.
+  if (p >= 16)
+    sum += __shfl_down_sync(0xffffffff, sum, 8);  // 0-8, 1-9, 2-10, etc.
+  if (p >= 8)
+    sum += __shfl_down_sync(0xffffffff, sum, 4);  // 0-4, 1-5, 2-6, etc.
+  if (p >= 4)
+    sum += __shfl_down_sync(0xffffffff, sum, 2);  // 0-2, 1-3, 4-6, 5-7, etc.
+  if (p >= 2)
+    sum += __shfl_down_sync(0xffffffff, sum, 1);  // 0-1, 2-3, 4-5, etc.
+  return sum;
+}
+```
+
+In this function, each thread starts with a sum, and the goal is to compute the total sum across all threads in the same warp and distribute the result back to all threads in that warp. The function achieves this with several rounds of pairwise summing and shifting.
+
+The `__shfl_down_sync(mask, var, delta)` function is used to perform the sum reduction. It takes a mask (`0xffffffff`, representing all threads in a warp) which indicates the threads participating in the operation, var which is the value to be shifted, and delta which is the number of positions to shift. This function returns the value of var held by the thread delta positions below the calling thread in the warp. If the target thread is out of bounds, the calling thread's own value is returned.
+
+The workflow can be illustrated as below: 
+
+![2](./pics/2.png)
+
+When `p` is less than `WARP_SIZE` (32), only 1 warp exists, the return value of `warpReduceSum()` would be the total sum across all threads in the warp, which will be directly written to the `result[i]`.
+
+When `p` is greater than `WARP_SIZE`, assuming there are `m` warps (`m` <= `WARP SIZE`), then there are 2 steps: 
+  - step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
+  - step 2: Each warp `j` loads its sum, `sum_j`, to the shared memory. The first `m` threads in the `warp_0` reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`. 
+
+### GPU thread layout
 
 ### Other attempted methods
 

@@ -20,6 +20,6 @@ __global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned
                               unsigned int num_per_thread);
 
 ///////////////////////////// REDUCE SUM //////////////////////////////
-__device__ __forceinline__ float warpReduceSum(float sum, unsigned int blockSize);
+__device__ __forceinline__ float warpReduceSum(float sum, unsigned int threadNum);
 
 #endif  // FAST_GEMV_CUH_

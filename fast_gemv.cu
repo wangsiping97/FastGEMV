@@ -226,16 +226,16 @@ __global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned
 ///////////////////////////// REDUCE SUM //////////////////////////////
 
 __device__ __forceinline__ float warpReduceSum(float sum,
-                                               unsigned int blockSize) {
-  if (blockSize >= 32)
+                                               unsigned int threadNum) {
+  if (threadNum >= 32)
     sum += __shfl_down_sync(0xffffffff, sum, 16);  // 0-16, 1-17, 2-18, etc.
-  if (blockSize >= 16)
+  if (threadNum >= 16)
     sum += __shfl_down_sync(0xffffffff, sum, 8);  // 0-8, 1-9, 2-10, etc.
-  if (blockSize >= 8)
+  if (threadNum >= 8)
     sum += __shfl_down_sync(0xffffffff, sum, 4);  // 0-4, 1-5, 2-6, etc.
-  if (blockSize >= 4)
+  if (threadNum >= 4)
     sum += __shfl_down_sync(0xffffffff, sum, 2);  // 0-2, 1-3, 4-6, 5-7, etc.
-  if (blockSize >= 2)
+  if (threadNum >= 2)
     sum += __shfl_down_sync(0xffffffff, sum, 1);  // 0-1, 2-3, 4-5, etc.
   return sum;
 }
