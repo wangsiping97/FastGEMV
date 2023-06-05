@@ -4,30 +4,22 @@
 
 ### P threads per dot product
 
-Instead of having one thread to produce 1 component of the result vector by computing the dot product between each row of the matrix and the vector, we had `p` threads to be responsible for one row, and each thread is responsible for `size / p` elements both in the matrix and in the vector.
+Rather than assigning a single thread to compute each component of the result vector, we propose an optimization technique using `p` threads per dot product. In this approach, each thread is responsible for processing `size / p` elements in both the matrix and the vector, while `p` threads collectively handle the computation for a single row.
 
-This is the big picture of our algorithm: 
+The following diagram provides an overview of our algorithm:
 
 ![1](./pics/1.png)
 
 As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result[i]`. 
 
-Hence, the problem can be divided into 2 parts: 
+Consequently, the problem can be divided into two key aspects:
 
-- How to optimize the computation time of generating the partial result in a single thread?
-- How to optimize the addition of each partial results in the same row? 
+- Optimizing the computation time of generating partial results within an individual thread.
+- Enhancing the efficiency of aggregating the partial results from multiple threads within the same row.
 
-### Vectorization
+### Optimize partial result aggregation: reduction sum
 
-#### fp16
-
-#### Quantized int8
-
-#### Quantized int4
-
-### Reduce sum
-
-When adding partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to CUTLASS's [warp and block reduction](https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h). Specifically, we have a self-implemented `warpReduceSum()` like this: 
+When aggregating the partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to CUTLASS's [warp and block reduction](https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h). Specifically, we have a self-implemented `warpReduceSum()` like this: 
 
 ```c++
 __device__ __forceinline__ float warpReduceSum(float sum,
@@ -59,6 +51,53 @@ When `p` is less than `WARP_SIZE` (32), only 1 warp exists, the return value of 
 When `p` is greater than `WARP_SIZE`, assuming there are `m` warps (`m` <= `WARP SIZE`), then there are 2 steps: 
   - step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
   - step 2: Each warp `j` loads its sum, `sum_j`, to the shared memory. The first `m` threads in the `warp_0` reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`. 
+
+### Optimize memory access time: vectorization
+
+In our algorithm, each GPU thread will be responsible for processing `size / p` elements in both the matrix and the vector. To optimize the memory access efficiency, we use vectorization by packing several values into a bigger data structure at a time, instead of operating on `half` (or `int8`, `int4`) numbers individually. 
+
+Vectorization allows us to efficiently utilize the memory bandwidth of our GPU. When a single `half` value (or `int8`, `int4`) is fetched from memory, it does not fully utilize the bandwidth because the memory transactions are typically conducted in larger chunks (32, 64, or even 128 bytes depending on the GPU architecture). However, for instance, when we fetch 8 `half` values (packed as `float4`) at a time, we can make full use of the available bandwidth, reducing the memory access time and hence improving the performance.
+
+When both matrix and vector are in fp16 (`half`), we fetch data from the matrix and vector as `float4` objects each time, reinterpret them as `half2` structures (which store two `half` values), and then perform the dot product operation on these `half2` structures:
+
+![3](./pics/3.png)
+
+When the vector is in fp16 and the matrix is in `int8`, we fetch data from the vector as `float4` objects and from the matrix as `half4` objects, reinterpret the `half4` objects as `int8_2` structures (which store two `int8` values), and then perform the dot product operation on these structures:
+
+![4](./pics/4.png)
+
+Note that `half4` and `int8_2` are self-implemented data structures, defined as below: 
+
+```c++
+struct half4 { half x, y, z, w; };
+struct int8_2 { int8_t x, y; };
+```
+
+When the vector is in fp16 and the matrix is in `int4`, based on the experiments from the previous cases, we found that it would be more efficient if each thread handles 16 or more numbers (i.e., `size / p` >= 16). Therefore, we tried to fetch 16 consecutive numbers from both the vector and the matrix at a time, at `float4` and `uint4_2_4` objects respectively: 
+
+![5](./pics/5.png)
+
+Both `uint4_2` and `uint_4_2_4` are self-implemented data structures, defined as below: 
+
+```c++
+struct uint4_2 {
+  uint8_t data;
+  uint4_2(uint8_t x = 0, uint8_t y = 0) {
+    setX(x);
+    setY(y);
+  }
+  __host__ __device__ uint8_t getX() const;
+  __host__ __device__ uint8_t getY() const;
+  __host__ __device__ void setX(uint8_t x);
+  __host__ __device__ void setY(uint8_t y);
+}; 
+
+struct uint4_2_4 { uint4_2 x, y, z, w; };
+```
+
+Note that the size of `uint4_2` is exactly 1 byte for 2 4-bit integers, it has higher memory efficiency than the [uint4b_t](https://github.com/NVIDIA/cutlass/blob/9b8166e3f0ea785300af85449210d01952a4107e/include/cutlass/integer_subbyte.h#L52) defined by CUTLASS.
+
+There is still more to explore in the vectorization side. For example, the first version of this project was implemented on P100, and we can try loading even more bytes at a time on newer machines. 
 
 ### GPU thread layout
 
