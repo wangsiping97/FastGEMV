@@ -35,19 +35,15 @@ For baseline result, see [here](./method_and_result.md).
 
 ```bash
 $ make
-$ ./gemv [-s <matrix_size> -k <num_kernels> -x <blockDim.x> -y <blockDim.y> -g <gridDim.x> -i <num_iterations> -b <bits_per_data> -u <scale> -v <zero_point>]
+$ ./gemv [-s <matrix_size> -x <blockDim.x> -y <blockDim.y> -i <num_iterations> -b <bits_per_data> -u <scale> -v <zero_point>]
 # if using Nsight, the following command will generate detailed report of each function / kernel
 $ nsys profile --stats=true --force-overwrite true -o <report_name> ./gemv \
-    [-s <matrix_size> -k <num_kernels> -x <blockDim.x> -y <blockDim.y> -g <gridDim.x> -i <num_iterations> -b <bits_per_data> -u <scale> -v <zero_point>]
+    [-s <matrix_size> -x <blockDim.x> -y <blockDim.y> -i <num_iterations> -b <bits_per_data> -u <scale> -v <zero_point>]
 ```
 
 - `matrix_size`: Should be an integer power of 2, e.g.: 512, 1024, 2048, ... For example, when size = 512, the matrix is 512 * 512, and the vector is 512 * 1.
 
-- `num_kernels`: If set to 1, the single-stage algorithm will be applied; if set to 2, the multi-stage algorithm will be applied. 
-
 - `blockDim.x` and `blockDim.y`: The block dimension when launching the kernel, both should be an integer power of 2. 
-
-- `gridDim.x`: The grid dimension when launching the kernel. Only `gridDim.x` is needed, `gridDim.y` can be computed as `matrix_size / blockDim.y`.
 
 - `num_iterations`: Number of iterations to do the test. If using Nsight to profile the runtime, it would be better to use a large iteration to get more precise values. 
 
@@ -57,31 +53,29 @@ $ nsys profile --stats=true --force-overwrite true -o <report_name> ./gemv \
 
 Other constraints:
 
-- If `num_kernels` is set to 1, `gridDim.x` should only be 1; if `num_kernels` is set to 2, `gridDim.x` should be set greater than 1. 
+- `blockDim.x * blockDim.y` should be less than or equal to the maximum number of threads in a block (or 1024).
 
 - `blockDim.y` should be less than or equal to 64, based on the size of the shared memory used in the kernel.
 
-- If using fp16 or int8, `size / (blockDim.x * gridDim.x)` should be greater than or equal to 8; if using int4, `size / (blockDim.x * gridDim.x)` should be greater than or equal to 16. 
+- If using fp16 or int8, `size / blockDim.x` should be greater than or equal to 8; if using int4, `size / blockDim.x` should be greater than or equal to 16. 
 
 Example: 
 
 ```bash
-$ ./gemv -s 16384  -k 2 -x 32 -y 8 -g 4 -i 10000
+$ ./gemv -s 16384 -x 32 -y 8 -i 10000
 ```
 
 The above command tries to run a GEMV with 16k * 16k matrix and 16k * 1 vector for 10000 times, with the following parameters:
 
-- using the multi-stage algorithm;
 - `blockDim` is (32, 8);
-- `gridDim` is (4, 2048), where 2048 comes from 16384 / 8;
 - `bits_per_data` is defualt to 16, so both the matrix and vector are in fp16;
 - no `scale` or `zero_point` is needed.
 
 ## Workflow
 
-When the `./gemv` program is running, it will first generate the matrix and vector data according to the size and bits provided by the user. All data will be generated using `curand`. Then the program will do `num_iterations` GEMV computations according to the `blockDim` and `gridDim` provided by the user. Finally, the program will check the result. If there is correctness error, it will print out the incorrect indexes as well as the values. If the test passes, no index will be printed out. 
+When the `./gemv` program is running, it will first generate the matrix and vector data according to the size and bits provided by the user. All data will be generated using `curand`. Then the program will do `num_iterations` GEMV computations according to the `blockDim` and `gridDim` as generated from the user input. Finally, the program will check the result. If there is correctness error, it will print out the incorrect indexes as well as the values. If the test passes, no index will be printed out. 
 
-The user can try multiple params of `blockDim` and `gridDim` to find out the best combinations for different settings and machines. 
+The user can try multiple params of `blockDim` to find out the best combinations for different settings and machines. 
 
 ## Optimization Strategy and Results
 
