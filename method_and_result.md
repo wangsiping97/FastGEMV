@@ -101,23 +101,35 @@ There is still more to explore in the vectorization side. For example, the first
 
 ### GPU thread layout
 
-We decided to have `m * p` threads per block, in each row `i`, `p` threads computes the dot product of `matrix[i]` and the vector. In this way, each block will compute `m` elements in the result vector. 
+We decided to have `m * p` threads per block, in each row `i`, `p` threads computes the dot product of `matrix[i]` and the vector. In this way, each block will compute `m` elements in the result vector. The following image shows the layout with `m` = 4 and `p` = 8:
 
 ![6](./pics/6.png)
 
 The grid layout, therefore, would be `(n / m, 1)`, where `n` is the side length of the matrix. 
 
-We also tried to have multiple `y` blocks per row to compute an intermediate result matrix (`n * y`) and then reduce the numbers in the intermediate result in each row to obtain the result vector using another kernel, shown as below: 
+We also tried to have multiple `y` blocks per row to compute an intermediate result matrix (`n * y`) and then reduce the numbers in the intermediate result in each row to obtain the result vector using another kernel. The following image shows the layout with `y` = 4:
 
 ![7](./pics/7.png)
 
 Using two kernels here can reduce the synchronization time between blocks and increase the utilization of the GPU resource in the reduction stage. However, this strategy yields close but slightly higher runtime comparing to the previous single-block-per-row solution.
 
-### Other attempted methods
+### Exploration of alternate strategies
 
-#### Shared memory
+#### Leveraging shared memory
 
-#### Hash table (quantized int8)
+One intuitive optimization technique involves employing shared memory for storing data that is reused multiple times within the same block. Given that we have `m` rows per block, elements fetched from the vector are used `m` times. To avoid redundant global memory access, we could load the values from the vector into shared memory for subsequent reuse. Despite the appeal of this strategy, experimental results did not show a performance improvement. One possible reason might be the synchronization overhead between the threads. 
+
+#### Precomputed result table for quantized integers
+
+When dealing with a matrix of quantized integers, each dot product operation introduces two additional operations due to the dequantization process:
+
+```
+sum += vec_value * (mat_value - zero_point) * scale;
+```
+
+Given that `int8` has only 256 distinct values and `int4` merely 16, an interesting proposition would be to precalculate a table that holds the product of each vector value with all possible integers. The table size for `int8` would thus be `256 * n`, and for `int4`, it would be `16 * n`, with `n` being the length of the vector.
+
+This strategy transforms computation into memory lookup, potentially reducing the computational load. However, based on experiments, this solution does not yield a better performance for the `int8` case. Due to time constraints, we were unable to test this approach in the `int4` scenario.
 
 ## Result
 
