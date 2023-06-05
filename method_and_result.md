@@ -6,7 +6,7 @@
 
 Instead of having one thread to produce 1 component of the result vector by computing the dot product between each row of the matrix and the vector, we had `p` threads to be responsible for one row, and each thread is responsible for `size / p` elements both in the matrix and in the vector.
 
-[1](/pics/1.png)
+![1](/pics/1.png)
 
 As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result`.  
 
@@ -19,7 +19,7 @@ When adding partial results computed by each thread, instead of summing up the v
   - step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
   - step 2: Each warp `i` loads its sum, `sum_i`, to the shared memory. The first `m` threads in the first warp reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`. 
 
-[2](/pics/2.png)
+![2](/pics/2.png)
 
 ### Vectorization
 
@@ -131,4 +131,4 @@ Here are the parameters used for above results:
 | 8192  | 256        | 4          | 1         | 2048      |
 | 16384 | 512        | 2          | 1         | 8192      |
 
-## Future Work
+## Conclusion
