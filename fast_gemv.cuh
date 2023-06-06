@@ -5,6 +5,8 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
+#include "utility.cuh"
+
 #define WARP_SIZE 32
 #define SHARED_MEM_MAX_ROWS 64
 #define MAX_THREADS_PER_BLOCK 1024
