@@ -1,6 +1,6 @@
 # Method and Result
 
-## Optimization Strategy
+## Optimization Strategies
 
 ### P threads per dot product
 
@@ -131,7 +131,7 @@ Given that `int8` has only 256 distinct values and `int4` merely 16, an interest
 
 This strategy transforms computation into memory lookup, potentially reducing the computational load. However, based on experiments, this solution does not yield a better performance for the `int8` case. Due to time constraints, we were unable to test this approach in the `int4` scenario.
 
-## Result
+## Experiment results
 
 ### Bandwidth estimation method
 
@@ -232,5 +232,3 @@ Here are the parameters used for above results:
 | 4096  | 256        | 1          | 1         | 4096      |
 | 8192  | 256        | 4          | 1         | 2048      |
 | 16384 | 512        | 2          | 1         | 8192      |
-
-## Conclusion
