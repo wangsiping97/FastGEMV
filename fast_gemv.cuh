@@ -11,15 +11,18 @@
 
 ///////////////////////////// GEMV //////////////////////////////
 __global__ void gemv_fp16(half* mat, half* vec, half* res, unsigned int n,
-                              unsigned int num_per_thread);
+                          unsigned int num_per_thread);
 
-__global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
-                              unsigned int num_per_thread);
+__global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res,
+                                    unsigned int n, half scale, half zero_point,
+                                    unsigned int num_per_thread);
 
-__global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
-                              unsigned int num_per_thread);
+__global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res,
+                                    unsigned int n, half scale, half zero_point,
+                                    unsigned int num_per_thread);
 
 ///////////////////////////// REDUCE SUM //////////////////////////////
-__device__ __forceinline__ float warpReduceSum(float sum, unsigned int threadNum);
+__device__ __forceinline__ float warpReduceSum(float sum,
+                                               unsigned int threadNum);
 
 #endif  // FAST_GEMV_CUH_

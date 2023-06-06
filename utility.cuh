@@ -4,8 +4,8 @@
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
-
 #include <stdio.h>
+
 #include <cstdint>
 
 ///////////////////////////// DATA TYPES //////////////////////////////
@@ -35,9 +35,15 @@ struct uint4_2 {
   }
 };
 
-struct half4 { half x, y, z, w; };
-struct int8_2 { int8_t x, y; };
-struct uint4_2_4 { uint4_2 x, y, z, w; };
+struct half4 {
+  half x, y, z, w;
+};
+struct int8_2 {
+  int8_t x, y;
+};
+struct uint4_2_4 {
+  uint4_2 x, y, z, w;
+};
 
 ///////////////////////////// CUDA UTILITIES //////////////////////////////
 
@@ -53,4 +59,4 @@ __global__ void generate_random_numbers(half* numbers, int Np);
 __global__ void generate_random_int8_numbers(int8_t* numbers, int Np);
 __global__ void generate_random_int4_numbers(uint4_2* numbers, int Np);
 
-#endif // UTILITY_H_
+#endif  // UTILITY_H_

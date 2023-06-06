@@ -5,14 +5,14 @@
 #include <driver_functions.h>
 #include <stdio.h>
 
-#include "utility.cuh"
 #include "fast_gemv.cuh"
+#include "utility.cuh"
 
 ///////////////////////////// NORMAL //////////////////////////////
 // thread_per_block = blockDim.x
 // blockDim.y <= SHARED_MEM_MAX_ROWS
 __global__ void gemv_fp16(half* mat, half* vec, half* res, unsigned int n,
-                              unsigned int num_per_thread) {
+                          unsigned int num_per_thread) {
   float sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
@@ -62,7 +62,9 @@ __global__ void gemv_fp16(half* mat, half* vec, half* res, unsigned int n,
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
   __syncthreads();
   // read from shared memory only if that warp existed
-  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE)
+            ? warpLevelSums[threadIdx.y][laneId]
+            : 0.0;
   // Final reduce using first warp
   if (warpId == 0) sum = warpReduceSum(sum, blockDim.x / WARP_SIZE);
   if (tid == 0) {
@@ -72,8 +74,9 @@ __global__ void gemv_fp16(half* mat, half* vec, half* res, unsigned int n,
 
 ///////////////////////////// QUANTIZED-INT8 //////////////////////////////
 
-__global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
-                              unsigned int num_per_thread) {
+__global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res,
+                                    unsigned int n, half scale, half zero_point,
+                                    unsigned int num_per_thread) {
   float sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
@@ -99,14 +102,22 @@ __global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res, unsigned 
       const int8_2* mat_h2 = (int8_2*)&mat_val.y;
       const int8_2* mat_h3 = (int8_2*)&mat_val.z;
       const int8_2* mat_h4 = (int8_2*)&mat_val.w;
-      sum += static_cast<float>(vec_h1->x) * (static_cast<float>(mat_h1->x) - zero_point_f);
-      sum += static_cast<float>(vec_h1->y) * (static_cast<float>(mat_h1->y) - zero_point_f);
-      sum += static_cast<float>(vec_h2->x) * (static_cast<float>(mat_h2->x) - zero_point_f);
-      sum += static_cast<float>(vec_h2->y) * (static_cast<float>(mat_h2->y) - zero_point_f);
-      sum += static_cast<float>(vec_h3->x) * (static_cast<float>(mat_h3->x) - zero_point_f);
-      sum += static_cast<float>(vec_h3->y) * (static_cast<float>(mat_h3->y) - zero_point_f);
-      sum += static_cast<float>(vec_h4->x) * (static_cast<float>(mat_h4->x) - zero_point_f);
-      sum += static_cast<float>(vec_h4->y) * (static_cast<float>(mat_h4->y) - zero_point_f);
+      sum += static_cast<float>(vec_h1->x) *
+             (static_cast<float>(mat_h1->x) - zero_point_f);
+      sum += static_cast<float>(vec_h1->y) *
+             (static_cast<float>(mat_h1->y) - zero_point_f);
+      sum += static_cast<float>(vec_h2->x) *
+             (static_cast<float>(mat_h2->x) - zero_point_f);
+      sum += static_cast<float>(vec_h2->y) *
+             (static_cast<float>(mat_h2->y) - zero_point_f);
+      sum += static_cast<float>(vec_h3->x) *
+             (static_cast<float>(mat_h3->x) - zero_point_f);
+      sum += static_cast<float>(vec_h3->y) *
+             (static_cast<float>(mat_h3->y) - zero_point_f);
+      sum += static_cast<float>(vec_h4->x) *
+             (static_cast<float>(mat_h4->x) - zero_point_f);
+      sum += static_cast<float>(vec_h4->y) *
+             (static_cast<float>(mat_h4->y) - zero_point_f);
     }
   }
 
@@ -128,7 +139,9 @@ __global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res, unsigned 
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
   __syncthreads();
   // read from shared memory only if that warp existed
-  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE)
+            ? warpLevelSums[threadIdx.y][laneId]
+            : 0.0;
   // Final reduce using first warp
   if (warpId == 0) sum = warpReduceSum(sum, blockDim.x / WARP_SIZE);
   if (tid == 0) {
@@ -139,8 +152,9 @@ __global__ void gemv_quantized_int8(int8_t* mat, half* vec, half* res, unsigned 
 ///////////////////////////// QUANTIZED-INT4 //////////////////////////////
 
 // based on previous experiments, num_per_thread can >= 16
-__global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned int n, half scale, half zero_point,
-                              unsigned int num_per_thread) {
+__global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res,
+                                    unsigned int n, half scale, half zero_point,
+                                    unsigned int num_per_thread) {
   float sum = 0;
   // each thread load num_per_thread elements from global
   unsigned int tid = threadIdx.x;
@@ -178,22 +192,38 @@ __global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned
       const uint4_2* mat_h7 = (uint4_2*)&mat_val_2.z;
       const uint4_2* mat_h8 = (uint4_2*)&mat_val_2.w;
 
-      sum += static_cast<float>(vec_h1->x) * (static_cast<float>(mat_h1->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h1->y) * (static_cast<float>(mat_h1->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h2->x) * (static_cast<float>(mat_h2->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h2->y) * (static_cast<float>(mat_h2->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h3->x) * (static_cast<float>(mat_h3->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h3->y) * (static_cast<float>(mat_h3->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h4->x) * (static_cast<float>(mat_h4->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h4->y) * (static_cast<float>(mat_h4->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h5->x) * (static_cast<float>(mat_h5->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h5->y) * (static_cast<float>(mat_h5->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h6->x) * (static_cast<float>(mat_h6->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h6->y) * (static_cast<float>(mat_h6->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h7->x) * (static_cast<float>(mat_h7->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h7->y) * (static_cast<float>(mat_h7->getY()) - zero_point_f);
-      sum += static_cast<float>(vec_h8->x) * (static_cast<float>(mat_h8->getX()) - zero_point_f);
-      sum += static_cast<float>(vec_h8->y) * (static_cast<float>(mat_h8->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h1->x) *
+             (static_cast<float>(mat_h1->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h1->y) *
+             (static_cast<float>(mat_h1->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h2->x) *
+             (static_cast<float>(mat_h2->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h2->y) *
+             (static_cast<float>(mat_h2->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h3->x) *
+             (static_cast<float>(mat_h3->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h3->y) *
+             (static_cast<float>(mat_h3->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h4->x) *
+             (static_cast<float>(mat_h4->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h4->y) *
+             (static_cast<float>(mat_h4->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h5->x) *
+             (static_cast<float>(mat_h5->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h5->y) *
+             (static_cast<float>(mat_h5->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h6->x) *
+             (static_cast<float>(mat_h6->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h6->y) *
+             (static_cast<float>(mat_h6->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h7->x) *
+             (static_cast<float>(mat_h7->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h7->y) *
+             (static_cast<float>(mat_h7->getY()) - zero_point_f);
+      sum += static_cast<float>(vec_h8->x) *
+             (static_cast<float>(mat_h8->getX()) - zero_point_f);
+      sum += static_cast<float>(vec_h8->y) *
+             (static_cast<float>(mat_h8->getY()) - zero_point_f);
     }
   }
 
@@ -215,7 +245,9 @@ __global__ void gemv_quantized_int4(uint4_2* mat, half* vec, half* res, unsigned
   if (laneId == 0) warpLevelSums[threadIdx.y][warpId] = sum;
   __syncthreads();
   // read from shared memory only if that warp existed
-  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warpLevelSums[threadIdx.y][laneId] : 0.0;
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE)
+            ? warpLevelSums[threadIdx.y][laneId]
+            : 0.0;
   // Final reduce using first warp
   if (warpId == 0) sum = warpReduceSum(sum, blockDim.x / WARP_SIZE);
   if (tid == 0) {

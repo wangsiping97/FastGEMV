@@ -10,7 +10,7 @@ The following diagram provides an overview of our algorithm:
 
 ![1](./pics/1.png)
 
-As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result[i]`. 
+As shown in the above image, in each row, `p` threads (here `p`=8) compute one section of the dot product, and then the partial results are added together to obtain one value of `result[i]`.
 
 Consequently, the problem can be divided into two key aspects:
 
@@ -19,7 +19,7 @@ Consequently, the problem can be divided into two key aspects:
 
 ### Optimize partial result aggregation: reduction sum
 
-When aggregating the partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to CUTLASS's [warp and block reduction](https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h). Specifically, we have a self-implemented `warpReduceSum()` like this: 
+When aggregating the partial results computed by each thread, instead of summing up the values one by one, we applied similar ideas to CUTLASS's [warp and block reduction](https://github.com/NVIDIA/cutlass/blob/main/tools/util/include/cutlass/util/device_utils.h). Specifically, we have a self-implemented `warpReduceSum()` like this:
 
 ```c++
 __device__ __forceinline__ float warpReduceSum(float sum,
@@ -42,19 +42,20 @@ In this function, each thread starts with a sum, and the goal is to compute the 
 
 The `__shfl_down_sync(mask, var, delta)` function is used to perform the sum reduction. It takes a mask (`0xffffffff`, representing all threads in a warp) which indicates the threads participating in the operation, var which is the value to be shifted, and delta which is the number of positions to shift. This function returns the value of var held by the thread delta positions below the calling thread in the warp. If the target thread is out of bounds, the calling thread's own value is returned.
 
-The workflow can be illustrated as below: 
+The workflow can be illustrated as below:
 
 ![2](./pics/2.png)
 
 When `p` is less than `WARP_SIZE` (32), only 1 warp exists, the return value of `warpReduceSum()` would be the total sum across all threads in the warp, which will be directly written to the `result[i]`.
 
-When `p` is greater than `WARP_SIZE`, assuming there are `m` warps (`m` <= `WARP SIZE`), then there are 2 steps: 
-  - step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
-  - step 2: Each warp `j` loads its sum, `sum_j`, to the shared memory. The first `m` threads in the `warp_0` reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`. 
+When `p` is greater than `WARP_SIZE`, assuming there are `m` warps (`m` <= `WARP SIZE`), then there are 2 steps:
+
+- step 1: Each warp computes the sum of values in itself by calling `warpReduceSum()`.
+- step 2: Each warp `j` loads its sum, `sum_j`, to the shared memory. The first `m` threads in the `warp_0` reads the values from the shared memory, and perform a reduction sum through `warpReduceSum()`.
 
 ### Optimize memory access time: vectorization
 
-In our algorithm, each GPU thread will be responsible for processing `size / p` elements in both the matrix and the vector. To optimize the memory access efficiency, we use vectorization by packing several values into a bigger data structure at a time, instead of operating on `half` (or `int8`, `int4`) numbers individually. 
+In our algorithm, each GPU thread will be responsible for processing `size / p` elements in both the matrix and the vector. To optimize the memory access efficiency, we use vectorization by packing several values into a bigger data structure at a time, instead of operating on `half` (or `int8`, `int4`) numbers individually.
 
 Vectorization allows us to efficiently utilize the memory bandwidth of our GPU. When a single `half` value (or `int8`, `int4`) is fetched from memory, it does not fully utilize the bandwidth because the memory transactions are typically conducted in larger chunks (32, 64, or even 128 bytes depending on the GPU architecture). However, for instance, when we fetch 8 `half` values (packed as `float4`) at a time, we can make full use of the available bandwidth, reducing the memory access time and hence improving the performance.
 
@@ -66,18 +67,18 @@ When the vector is in fp16 and the matrix is in `int8`, we fetch data from the v
 
 ![4](./pics/4.png)
 
-Note that `half4` and `int8_2` are self-implemented data structures, defined as below: 
+Note that `half4` and `int8_2` are self-implemented data structures, defined as below:
 
 ```c++
 struct half4 { half x, y, z, w; };
 struct int8_2 { int8_t x, y; };
 ```
 
-When the vector is in fp16 and the matrix is in `int4`, based on the experiments from the previous cases, we found that it would be more efficient if each thread handles 16 numbers than 8 numbers. Therefore, we tried to fetch 16 consecutive numbers from both the vector and the matrix at a time, at `float4` and `uint4_2_4` objects respectively: 
+When the vector is in fp16 and the matrix is in `int4`, based on the experiments from the previous cases, we found that it would be more efficient if each thread handles 16 numbers than 8 numbers. Therefore, we tried to fetch 16 consecutive numbers from both the vector and the matrix at a time, at `float4` and `uint4_2_4` objects respectively:
 
 ![5](./pics/5.png)
 
-Both `uint4_2` and `uint_4_2_4` are self-implemented data structures, defined as below: 
+Both `uint4_2` and `uint_4_2_4` are self-implemented data structures, defined as below:
 
 ```c++
 struct uint4_2 {
@@ -97,7 +98,7 @@ struct uint4_2_4 { uint4_2 x, y, z, w; };
 
 The size of `uint4_2` is exactly 1 byte for 2 4-bit integers. It has higher memory efficiency than the [uint4b_t](https://github.com/NVIDIA/cutlass/blob/9b8166e3f0ea785300af85449210d01952a4107e/include/cutlass/integer_subbyte.h#L52) defined by CUTLASS.
 
-There is still more to explore in the vectorization side. For example, the first version of this project was implemented on P100, and we can try loading even more bytes at a time on newer machines. 
+There is still more to explore in the vectorization side. For example, the first version of this project was implemented on P100, and we can try loading even more bytes at a time on newer machines.
 
 ### GPU thread layout
 
@@ -105,7 +106,7 @@ We decided to have `m * p` threads per block, in each row `i`, `p` threads compu
 
 ![6](./pics/6.png)
 
-The grid layout, therefore, would be `(n / m, 1)`, where `n` is the side length of the matrix. 
+The grid layout, therefore, would be `(n / m, 1)`, where `n` is the side length of the matrix.
 
 We also tried to have multiple `y` blocks per row to compute an intermediate result matrix (`n * y`) and then reduce the numbers in the intermediate result in each row to obtain the result vector using another kernel. The following image shows the layout with `y` = 4:
 
@@ -117,13 +118,13 @@ Using two kernels here can reduce the synchronization time between blocks and in
 
 #### Leveraging shared memory
 
-One intuitive optimization technique involves employing shared memory for storing data that is reused multiple times within the same block. Given that we have `m` rows per block, elements fetched from the vector are used `m` times. To avoid redundant global memory access, we could load the values from the vector into shared memory for subsequent reuse. Despite the appeal of this strategy, experimental results did not show a performance improvement. One possible reason might be the synchronization overhead between the threads. 
+One intuitive optimization technique involves employing shared memory for storing data that is reused multiple times within the same block. Given that we have `m` rows per block, elements fetched from the vector are used `m` times. To avoid redundant global memory access, we could load the values from the vector into shared memory for subsequent reuse. Despite the appeal of this strategy, experimental results did not show a performance improvement. One possible reason might be the synchronization overhead between the threads.
 
 #### Precomputed result table for quantized integers
 
 When dealing with a matrix of quantized integers, each dot product operation introduces two additional operations due to the dequantization process:
 
-```
+```c++
 sum += vec_value * (mat_value - zero_point) * scale;
 ```
 
@@ -135,27 +136,27 @@ This strategy transforms computation into memory lookup, potentially reducing th
 
 ### Bandwidth estimation method
 
-The formula we used to estimate the achieved bandwidth is: 
+The formula we used to estimate the achieved bandwidth is:
 
-```
+```text
 Estimated BW = (sizeof(mat) + sizeof(vec) + sizeof(result)) / T 
 ```
 
-This is because we need to read each data of both the matrix and the vector once, and then write it to the result vector. More specifically, 
+This is because we need to read each data of both the matrix and the vector once, and then write it to the result vector. More specifically,
 
-- when matrix is in fp16, BW = (2 * n^2 + 2 * 2n) / T (GB/s)
+- when matrix is in fp16, BW = (2 *n^2 + 2* 2n) / T (GB/s)
 
 - when matrix is in int8, BW = (n^2 + 2 * 2n) / T (GB/s)
 
-- when matrix is in int4, BW = (0.5 * n^2 + 2 * 2n) / T (GB/s)
+- when matrix is in int4, BW = (0.5 *n^2 + 2* 2n) / T (GB/s)
 
-where n is the matrix size and T is in ns. 
+where n is the matrix size and T is in ns.
 
 ### On P100
 
 We only tested the runtime and estimated bandwidth for non-quantized fp16 matrices. Here is the result compared with pytorch:
 
-Total GEMV kernel(s) average runtime (ns): 
+Total GEMV kernel(s) average runtime (ns):
 
 | Size  | Pytorch   | My Kernel | Speedup |
 | ----- | --------- | --------- | ------- |
@@ -181,7 +182,7 @@ Estimated BW (Max: 732 GB/s):
 
 ![BW P100](./pics/Estimated%20Achieved%20Bandwidth%20(GB_s)%20-%20P100.png)
 
-Here are the parameters used for above results: 
+Here are the parameters used for above results:
 
 | size  | blockDim.x | blockDim.y | gridDim.x | gridDim.y |
 | ----- | ---------- | ---------- | --------- | --------- |
@@ -196,7 +197,7 @@ Here are the parameters used for above results:
 
 Here is the overall runtime and achieved bandwidth compared with pytorch. Note that pytorch doesn't support direct computation of quantized GEMV.
 
-Total GEMV kernel(s) average runtime (ns): 
+Total GEMV kernel(s) average runtime (ns):
 
 | Size  | Pytorch  | My Kernel | int8 Quantized | int4 Quantized |
 | ----- | -------- | --------- | -------------- | -------------- |
@@ -222,7 +223,7 @@ Estimated BW (Max: 936.19 GB/s):
 
 ![Runtime 3090](./pics/Estimated%20Achieved%20Bandwidth%20(GB_s)%20-%203090.png)
 
-Here are the parameters used for above results: 
+Here are the parameters used for above results:
 
 | size  | blockDim.x | blockDim.y | gridDim.x | gridDim.y |
 | ----- | ---------- | ---------- | --------- | --------- |

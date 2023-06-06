@@ -5,8 +5,8 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 #include "utility.cuh"
 
@@ -15,8 +15,7 @@ class SimpleTensor {
  public:
   SimpleTensor(unsigned height, unsigned width)
       : height_(height), width_(width) {
-    checkCudaErrors(
-        cudaMalloc((void**)&data_, height_ * width_ * sizeof(T)));
+    checkCudaErrors(cudaMalloc((void**)&data_, height_ * width_ * sizeof(T)));
   }
   T* device_data() const { return data_; }
   /**
@@ -69,13 +68,13 @@ void SimpleTensor<T>::reset() {
 
   if constexpr (std::is_same<T, half>::value) {
     generate_random_numbers<<<num_blocks, threads_per_block>>>(data_,
-                                                            total_elements);
+                                                               total_elements);
   } else if constexpr (std::is_same<T, int8_t>::value) {
-    generate_random_int8_numbers<<<num_blocks, threads_per_block>>>(data_,
-                                                            total_elements);
+    generate_random_int8_numbers<<<num_blocks, threads_per_block>>>(
+        data_, total_elements);
   } else if constexpr (std::is_same<T, uint4_2>::value) {
-    generate_random_int4_numbers<<<num_blocks, threads_per_block>>>(data_,
-                                                            total_elements);
+    generate_random_int4_numbers<<<num_blocks, threads_per_block>>>(
+        data_, total_elements);
   }
   checkCudaErrors(cudaPeekAtLastError());
 }
