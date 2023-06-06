@@ -82,12 +82,11 @@ __global__ void check_correctness(half* mat, half* vec, half* res, int n) {
     for (int j = 0; j < n; ++j) {
       result += __half2float(mat[idx * n + j]) * __half2float(vec[j]);
     }
-    half half_result = __float2half(result);
-    float diff = __half2float(res[idx]) - __half2float(half_result);
+    float diff = result - __half2float(res[idx]);
     float delta = 0.125 * n / 512;
     if (diff > delta || diff < -delta) {
       printf("!!![idx=%d] %f != %f, diff=%f\n", idx, __half2float(res[idx]),
-             __half2float(result), diff);
+             result, diff);
     }
   }
 }
@@ -100,12 +99,11 @@ __global__ void check_int8_quantized_correctness(int8_t* mat, half* vec, half* r
       float dequantized_val = (static_cast<float>(mat[idx * n + j]) - static_cast<float>(zero_point)) * static_cast<float>(scale);
       result += dequantized_val * __half2float(vec[j]);
     }
-    half half_result = __float2half(result);
-    float diff = __half2float(res[idx]) - __half2float(half_result);
+    float diff = result - __half2float(res[idx]);
     float delta = 0.125 * n / 512;
     if (diff > delta || diff < -delta) {
       printf("!!![idx=%d] %f != %f, diff=%f\n", idx, __half2float(res[idx]),
-             __half2float(result), diff);
+             result, diff);
     }
   }
 }
@@ -122,12 +120,11 @@ __global__ void check_int4_quantized_correctness(uint4_2* mat, half* vec, half* 
       result += dequantized_x * __half2float(vec[j * 2]);
       result += dequantized_y * __half2float(vec[j * 2 + 1]);
     }
-    half half_result = __float2half(result);
-    float diff = __half2float(res[idx]) - __half2float(half_result);
+    float diff = result - __half2float(res[idx]);
     float delta = 0.125 * mat_size / 256;
     if (diff > delta || diff < -delta) {
       printf("!!![idx=%d] %f != %f, diff=%f\n", idx, __half2float(res[idx]),
-             __half2float(result), diff);
+             result, diff);
     }
   }
 }
